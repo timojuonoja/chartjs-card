@@ -1,6 +1,6 @@
 import pkg from '../package.json'
 import Chart from 'chart.js/auto'
-import 'chartjs-adapter-date-fns'
+import 'chartjs-adapter-luxon'
 import { LitElement, html } from 'lit'
 import _ from 'lodash'
 
