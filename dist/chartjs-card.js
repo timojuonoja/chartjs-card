@@ -3,8 +3,8 @@
   factory();
 })((function () { 'use strict';
 
-  const name = "chartjs-card";
-  const version$3 = "1.1.1";
+  const name$1 = "chartjs-card";
+  const version$3 = "1.1.2";
   const description = "Chart.js card to Home Assistant";
   const main = "src/index.js";
   const keywords = [
@@ -14,8 +14,10 @@
   ];
   const dependencies = {
   	"chart.js": "^3.7.0",
+  	"chartjs-adapter-date-fns": "^3.0.0",
   	"chartjs-plugin-annotation": "^1.2.2",
   	"chartjs-plugin-zoom": "^1.2.0",
+  	"date-fns": "^4.1.0",
   	lit: "^2.1.1",
   	lodash: "^4.17.15"
   };
@@ -36,7 +38,7 @@
   const author = "Ricardo Reis";
   const license = "ISC";
   var pkg = {
-  	name: name,
+  	name: name$1,
   	version: version$3,
   	description: description,
   	main: main,
@@ -49,53 +51,11 @@
   };
 
   /*!
-   * Chart.js v3.7.0
+   * Chart.js v3.9.1
    * https://www.chartjs.org
-   * (c) 2021 Chart.js Contributors
+   * (c) 2022 Chart.js Contributors
    * Released under the MIT License
    */
-  const requestAnimFrame = (function() {
-    if (typeof window === 'undefined') {
-      return function(callback) {
-        return callback();
-      };
-    }
-    return window.requestAnimationFrame;
-  }());
-  function throttled(fn, thisArg, updateFn) {
-    const updateArgs = updateFn || ((args) => Array.prototype.slice.call(args));
-    let ticking = false;
-    let args = [];
-    return function(...rest) {
-      args = updateArgs(rest);
-      if (!ticking) {
-        ticking = true;
-        requestAnimFrame.call(window, () => {
-          ticking = false;
-          fn.apply(thisArg, args);
-        });
-      }
-    };
-  }
-  function debounce$1(fn, delay) {
-    let timeout;
-    return function(...args) {
-      if (delay) {
-        clearTimeout(timeout);
-        timeout = setTimeout(fn, delay, args);
-      } else {
-        fn.apply(this, args);
-      }
-      return delay;
-    };
-  }
-  const _toLeftRightCenter = (align) => align === 'start' ? 'left' : align === 'end' ? 'right' : 'center';
-  const _alignStartEnd = (align, start, end) => align === 'start' ? start : align === 'end' ? end : (start + end) / 2;
-  const _textX = (align, left, right, rtl) => {
-    const check = rtl ? 'left' : 'right';
-    return align === check ? right : align === 'center' ? (left + right) / 2 : left;
-  };
-
   function noop() {}
   const uid = (function() {
     let id = 0;
@@ -111,7 +71,7 @@
       return true;
     }
     const type = Object.prototype.toString.call(value);
-    if (type.substr(0, 7) === '[object' && type.substr(-6) === 'Array]') {
+    if (type.slice(0, 7) === '[object' && type.slice(-6) === 'Array]') {
       return true;
     }
     return false;
@@ -240,24 +200,41 @@
       target[key] = clone$1(sval);
     }
   }
-  const emptyString = '';
-  const dot = '.';
-  function indexOfDotOrLength(key, start) {
-    const idx = key.indexOf(dot, start);
-    return idx === -1 ? key.length : idx;
-  }
+  const keyResolvers = {
+    '': v => v,
+    x: o => o.x,
+    y: o => o.y
+  };
   function resolveObjectKey(obj, key) {
-    if (key === emptyString) {
+    const resolver = keyResolvers[key] || (keyResolvers[key] = _getKeyResolver(key));
+    return resolver(obj);
+  }
+  function _getKeyResolver(key) {
+    const keys = _splitKey(key);
+    return obj => {
+      for (const k of keys) {
+        if (k === '') {
+          break;
+        }
+        obj = obj && obj[k];
+      }
       return obj;
+    };
+  }
+  function _splitKey(key) {
+    const parts = key.split('.');
+    const keys = [];
+    let tmp = '';
+    for (const part of parts) {
+      tmp += part;
+      if (tmp.endsWith('\\')) {
+        tmp = tmp.slice(0, -1) + '.';
+      } else {
+        keys.push(tmp);
+        tmp = '';
+      }
     }
-    let pos = 0;
-    let idx = indexOfDotOrLength(key, pos);
-    while (obj && idx > pos) {
-      obj = obj[key.substr(pos, idx - pos)];
-      pos = idx + 1;
-      idx = indexOfDotOrLength(key, pos);
-    }
-    return obj;
+    return keys;
   }
   function _capitalize(str) {
     return str.charAt(0).toUpperCase() + str.slice(1);
@@ -279,14 +256,14 @@
     return e.type === 'mouseup' || e.type === 'click' || e.type === 'contextmenu';
   }
 
-  const PI$1 = Math.PI;
-  const TAU = 2 * PI$1;
-  const PITAU = TAU + PI$1;
+  const PI = Math.PI;
+  const TAU = 2 * PI;
+  const PITAU = TAU + PI;
   const INFINITY = Number.POSITIVE_INFINITY;
-  const RAD_PER_DEG = PI$1 / 180;
-  const HALF_PI = PI$1 / 2;
-  const QUARTER_PI = PI$1 / 4;
-  const TWO_THIRDS_PI = PI$1 * 2 / 3;
+  const RAD_PER_DEG = PI / 180;
+  const HALF_PI = PI / 2;
+  const QUARTER_PI = PI / 4;
+  const TWO_THIRDS_PI = PI * 2 / 3;
   const log10 = Math.log10;
   const sign = Math.sign;
   function niceNum(range) {
@@ -334,10 +311,10 @@
     }
   }
   function toRadians(degrees) {
-    return degrees * (PI$1 / 180);
+    return degrees * (PI / 180);
   }
   function toDegrees(radians) {
-    return radians * (180 / PI$1);
+    return radians * (180 / PI);
   }
   function _decimalPlaces(x) {
     if (!isNumberFinite(x)) {
@@ -356,7 +333,7 @@
     const distanceFromYCenter = anglePoint.y - centrePoint.y;
     const radialDistanceFromCenter = Math.sqrt(distanceFromXCenter * distanceFromXCenter + distanceFromYCenter * distanceFromYCenter);
     let angle = Math.atan2(distanceFromYCenter, distanceFromXCenter);
-    if (angle < (-0.5 * PI$1)) {
+    if (angle < (-0.5 * PI)) {
       angle += TAU;
     }
     return {
@@ -368,7 +345,7 @@
     return Math.sqrt(Math.pow(pt2.x - pt1.x, 2) + Math.pow(pt2.y - pt1.y, 2));
   }
   function _angleDiff(a, b) {
-    return (a - b + PITAU) % TAU - PI$1;
+    return (a - b + PITAU) % TAU - PI;
   }
   function _normalizeAngle(a) {
     return (a % TAU + TAU) % TAU;
@@ -392,6 +369,186 @@
   }
   function _isBetween(value, start, end, epsilon = 1e-6) {
     return value >= Math.min(start, end) - epsilon && value <= Math.max(start, end) + epsilon;
+  }
+
+  function _lookup(table, value, cmp) {
+    cmp = cmp || ((index) => table[index] < value);
+    let hi = table.length - 1;
+    let lo = 0;
+    let mid;
+    while (hi - lo > 1) {
+      mid = (lo + hi) >> 1;
+      if (cmp(mid)) {
+        lo = mid;
+      } else {
+        hi = mid;
+      }
+    }
+    return {lo, hi};
+  }
+  const _lookupByKey = (table, key, value, last) =>
+    _lookup(table, value, last
+      ? index => table[index][key] <= value
+      : index => table[index][key] < value);
+  const _rlookupByKey = (table, key, value) =>
+    _lookup(table, value, index => table[index][key] >= value);
+  function _filterBetween(values, min, max) {
+    let start = 0;
+    let end = values.length;
+    while (start < end && values[start] < min) {
+      start++;
+    }
+    while (end > start && values[end - 1] > max) {
+      end--;
+    }
+    return start > 0 || end < values.length
+      ? values.slice(start, end)
+      : values;
+  }
+  const arrayEvents = ['push', 'pop', 'shift', 'splice', 'unshift'];
+  function listenArrayEvents(array, listener) {
+    if (array._chartjs) {
+      array._chartjs.listeners.push(listener);
+      return;
+    }
+    Object.defineProperty(array, '_chartjs', {
+      configurable: true,
+      enumerable: false,
+      value: {
+        listeners: [listener]
+      }
+    });
+    arrayEvents.forEach((key) => {
+      const method = '_onData' + _capitalize(key);
+      const base = array[key];
+      Object.defineProperty(array, key, {
+        configurable: true,
+        enumerable: false,
+        value(...args) {
+          const res = base.apply(this, args);
+          array._chartjs.listeners.forEach((object) => {
+            if (typeof object[method] === 'function') {
+              object[method](...args);
+            }
+          });
+          return res;
+        }
+      });
+    });
+  }
+  function unlistenArrayEvents(array, listener) {
+    const stub = array._chartjs;
+    if (!stub) {
+      return;
+    }
+    const listeners = stub.listeners;
+    const index = listeners.indexOf(listener);
+    if (index !== -1) {
+      listeners.splice(index, 1);
+    }
+    if (listeners.length > 0) {
+      return;
+    }
+    arrayEvents.forEach((key) => {
+      delete array[key];
+    });
+    delete array._chartjs;
+  }
+  function _arrayUnique(items) {
+    const set = new Set();
+    let i, ilen;
+    for (i = 0, ilen = items.length; i < ilen; ++i) {
+      set.add(items[i]);
+    }
+    if (set.size === ilen) {
+      return items;
+    }
+    return Array.from(set);
+  }
+  const requestAnimFrame = (function() {
+    if (typeof window === 'undefined') {
+      return function(callback) {
+        return callback();
+      };
+    }
+    return window.requestAnimationFrame;
+  }());
+  function throttled(fn, thisArg, updateFn) {
+    const updateArgs = updateFn || ((args) => Array.prototype.slice.call(args));
+    let ticking = false;
+    let args = [];
+    return function(...rest) {
+      args = updateArgs(rest);
+      if (!ticking) {
+        ticking = true;
+        requestAnimFrame.call(window, () => {
+          ticking = false;
+          fn.apply(thisArg, args);
+        });
+      }
+    };
+  }
+  function debounce$1(fn, delay) {
+    let timeout;
+    return function(...args) {
+      if (delay) {
+        clearTimeout(timeout);
+        timeout = setTimeout(fn, delay, args);
+      } else {
+        fn.apply(this, args);
+      }
+      return delay;
+    };
+  }
+  const _toLeftRightCenter = (align) => align === 'start' ? 'left' : align === 'end' ? 'right' : 'center';
+  const _alignStartEnd = (align, start, end) => align === 'start' ? start : align === 'end' ? end : (start + end) / 2;
+  const _textX = (align, left, right, rtl) => {
+    const check = rtl ? 'left' : 'right';
+    return align === check ? right : align === 'center' ? (left + right) / 2 : left;
+  };
+  function _getStartAndCountOfVisiblePoints(meta, points, animationsDisabled) {
+    const pointCount = points.length;
+    let start = 0;
+    let count = pointCount;
+    if (meta._sorted) {
+      const {iScale, _parsed} = meta;
+      const axis = iScale.axis;
+      const {min, max, minDefined, maxDefined} = iScale.getUserBounds();
+      if (minDefined) {
+        start = _limitValue(Math.min(
+          _lookupByKey(_parsed, iScale.axis, min).lo,
+          animationsDisabled ? pointCount : _lookupByKey(points, axis, iScale.getPixelForValue(min)).lo),
+        0, pointCount - 1);
+      }
+      if (maxDefined) {
+        count = _limitValue(Math.max(
+          _lookupByKey(_parsed, iScale.axis, max, true).hi + 1,
+          animationsDisabled ? 0 : _lookupByKey(points, axis, iScale.getPixelForValue(max), true).hi + 1),
+        start, pointCount) - start;
+      } else {
+        count = pointCount - start;
+      }
+    }
+    return {start, count};
+  }
+  function _scaleRangesChanged(meta) {
+    const {xScale, yScale, _scaleRanges} = meta;
+    const newRanges = {
+      xmin: xScale.min,
+      xmax: xScale.max,
+      ymin: yScale.min,
+      ymax: yScale.max
+    };
+    if (!_scaleRanges) {
+      meta._scaleRanges = newRanges;
+      return true;
+    }
+    const changed = _scaleRanges.xmin !== xScale.min
+  		|| _scaleRanges.xmax !== xScale.max
+  		|| _scaleRanges.ymin !== yScale.min
+  		|| _scaleRanges.ymax !== yScale.max;
+    Object.assign(_scaleRanges, newRanges);
+    return changed;
   }
 
   const atEdge = (t) => t === 0 || t === 1;
@@ -421,7 +578,7 @@
       : 0.5 * ((t -= 2) * t * t * t * t + 2),
     easeInSine: t => -Math.cos(t * HALF_PI) + 1,
     easeOutSine: t => Math.sin(t * HALF_PI),
-    easeInOutSine: t => -0.5 * (Math.cos(PI$1 * t) - 1),
+    easeInOutSine: t => -0.5 * (Math.cos(PI * t) - 1),
     easeInExpo: t => (t === 0) ? 0 : Math.pow(2, 10 * (t - 1)),
     easeOutExpo: t => (t === 1) ? 1 : -Math.pow(2, -10 * t) + 1,
     easeInOutExpo: t => atEdge(t) ? t : t < 0.5
@@ -478,561 +635,589 @@
   };
 
   /*!
-   * @kurkle/color v0.1.9
+   * @kurkle/color v0.2.1
    * https://github.com/kurkle/color#readme
-   * (c) 2020 Jukka Kurkela
+   * (c) 2022 Jukka Kurkela
    * Released under the MIT License
    */
-  const map$1 = {0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8, 9: 9, A: 10, B: 11, C: 12, D: 13, E: 14, F: 15, a: 10, b: 11, c: 12, d: 13, e: 14, f: 15};
-  const hex = '0123456789ABCDEF';
-  const h1 = (b) => hex[b & 0xF];
-  const h2 = (b) => hex[(b & 0xF0) >> 4] + hex[b & 0xF];
-  const eq = (b) => (((b & 0xF0) >> 4) === (b & 0xF));
-  function isShort(v) {
-  	return eq(v.r) && eq(v.g) && eq(v.b) && eq(v.a);
-  }
-  function hexParse(str) {
-  	var len = str.length;
-  	var ret;
-  	if (str[0] === '#') {
-  		if (len === 4 || len === 5) {
-  			ret = {
-  				r: 255 & map$1[str[1]] * 17,
-  				g: 255 & map$1[str[2]] * 17,
-  				b: 255 & map$1[str[3]] * 17,
-  				a: len === 5 ? map$1[str[4]] * 17 : 255
-  			};
-  		} else if (len === 7 || len === 9) {
-  			ret = {
-  				r: map$1[str[1]] << 4 | map$1[str[2]],
-  				g: map$1[str[3]] << 4 | map$1[str[4]],
-  				b: map$1[str[5]] << 4 | map$1[str[6]],
-  				a: len === 9 ? (map$1[str[7]] << 4 | map$1[str[8]]) : 255
-  			};
-  		}
-  	}
-  	return ret;
-  }
-  function hexString(v) {
-  	var f = isShort(v) ? h1 : h2;
-  	return v
-  		? '#' + f(v.r) + f(v.g) + f(v.b) + (v.a < 255 ? f(v.a) : '')
-  		: v;
-  }
   function round(v) {
-  	return v + 0.5 | 0;
+    return v + 0.5 | 0;
   }
   const lim = (v, l, h) => Math.max(Math.min(v, h), l);
   function p2b(v) {
-  	return lim(round(v * 2.55), 0, 255);
+    return lim(round(v * 2.55), 0, 255);
   }
   function n2b(v) {
-  	return lim(round(v * 255), 0, 255);
+    return lim(round(v * 255), 0, 255);
   }
   function b2n(v) {
-  	return lim(round(v / 2.55) / 100, 0, 1);
+    return lim(round(v / 2.55) / 100, 0, 1);
   }
   function n2p(v) {
-  	return lim(round(v * 100), 0, 100);
+    return lim(round(v * 100), 0, 100);
   }
-  const RGB_RE = /^rgba?\(\s*([-+.\d]+)(%)?[\s,]+([-+.e\d]+)(%)?[\s,]+([-+.e\d]+)(%)?(?:[\s,/]+([-+.e\d]+)(%)?)?\s*\)$/;
-  function rgbParse(str) {
-  	const m = RGB_RE.exec(str);
-  	let a = 255;
-  	let r, g, b;
-  	if (!m) {
-  		return;
-  	}
-  	if (m[7] !== r) {
-  		const v = +m[7];
-  		a = 255 & (m[8] ? p2b(v) : v * 255);
-  	}
-  	r = +m[1];
-  	g = +m[3];
-  	b = +m[5];
-  	r = 255 & (m[2] ? p2b(r) : r);
-  	g = 255 & (m[4] ? p2b(g) : g);
-  	b = 255 & (m[6] ? p2b(b) : b);
-  	return {
-  		r: r,
-  		g: g,
-  		b: b,
-  		a: a
-  	};
+  const map$1 = {0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8, 9: 9, A: 10, B: 11, C: 12, D: 13, E: 14, F: 15, a: 10, b: 11, c: 12, d: 13, e: 14, f: 15};
+  const hex = [...'0123456789ABCDEF'];
+  const h1 = b => hex[b & 0xF];
+  const h2 = b => hex[(b & 0xF0) >> 4] + hex[b & 0xF];
+  const eq = b => ((b & 0xF0) >> 4) === (b & 0xF);
+  const isShort = v => eq(v.r) && eq(v.g) && eq(v.b) && eq(v.a);
+  function hexParse(str) {
+    var len = str.length;
+    var ret;
+    if (str[0] === '#') {
+      if (len === 4 || len === 5) {
+        ret = {
+          r: 255 & map$1[str[1]] * 17,
+          g: 255 & map$1[str[2]] * 17,
+          b: 255 & map$1[str[3]] * 17,
+          a: len === 5 ? map$1[str[4]] * 17 : 255
+        };
+      } else if (len === 7 || len === 9) {
+        ret = {
+          r: map$1[str[1]] << 4 | map$1[str[2]],
+          g: map$1[str[3]] << 4 | map$1[str[4]],
+          b: map$1[str[5]] << 4 | map$1[str[6]],
+          a: len === 9 ? (map$1[str[7]] << 4 | map$1[str[8]]) : 255
+        };
+      }
+    }
+    return ret;
   }
-  function rgbString(v) {
-  	return v && (
-  		v.a < 255
-  			? `rgba(${v.r}, ${v.g}, ${v.b}, ${b2n(v.a)})`
-  			: `rgb(${v.r}, ${v.g}, ${v.b})`
-  	);
+  const alpha = (a, f) => a < 255 ? f(a) : '';
+  function hexString(v) {
+    var f = isShort(v) ? h1 : h2;
+    return v
+      ? '#' + f(v.r) + f(v.g) + f(v.b) + alpha(v.a, f)
+      : undefined;
   }
   const HUE_RE = /^(hsla?|hwb|hsv)\(\s*([-+.e\d]+)(?:deg)?[\s,]+([-+.e\d]+)%[\s,]+([-+.e\d]+)%(?:[\s,]+([-+.e\d]+)(%)?)?\s*\)$/;
   function hsl2rgbn(h, s, l) {
-  	const a = s * Math.min(l, 1 - l);
-  	const f = (n, k = (n + h / 30) % 12) => l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
-  	return [f(0), f(8), f(4)];
+    const a = s * Math.min(l, 1 - l);
+    const f = (n, k = (n + h / 30) % 12) => l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+    return [f(0), f(8), f(4)];
   }
   function hsv2rgbn(h, s, v) {
-  	const f = (n, k = (n + h / 60) % 6) => v - v * s * Math.max(Math.min(k, 4 - k, 1), 0);
-  	return [f(5), f(3), f(1)];
+    const f = (n, k = (n + h / 60) % 6) => v - v * s * Math.max(Math.min(k, 4 - k, 1), 0);
+    return [f(5), f(3), f(1)];
   }
   function hwb2rgbn(h, w, b) {
-  	const rgb = hsl2rgbn(h, 1, 0.5);
-  	let i;
-  	if (w + b > 1) {
-  		i = 1 / (w + b);
-  		w *= i;
-  		b *= i;
-  	}
-  	for (i = 0; i < 3; i++) {
-  		rgb[i] *= 1 - w - b;
-  		rgb[i] += w;
-  	}
-  	return rgb;
+    const rgb = hsl2rgbn(h, 1, 0.5);
+    let i;
+    if (w + b > 1) {
+      i = 1 / (w + b);
+      w *= i;
+      b *= i;
+    }
+    for (i = 0; i < 3; i++) {
+      rgb[i] *= 1 - w - b;
+      rgb[i] += w;
+    }
+    return rgb;
+  }
+  function hueValue(r, g, b, d, max) {
+    if (r === max) {
+      return ((g - b) / d) + (g < b ? 6 : 0);
+    }
+    if (g === max) {
+      return (b - r) / d + 2;
+    }
+    return (r - g) / d + 4;
   }
   function rgb2hsl(v) {
-  	const range = 255;
-  	const r = v.r / range;
-  	const g = v.g / range;
-  	const b = v.b / range;
-  	const max = Math.max(r, g, b);
-  	const min = Math.min(r, g, b);
-  	const l = (max + min) / 2;
-  	let h, s, d;
-  	if (max !== min) {
-  		d = max - min;
-  		s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-  		h = max === r
-  			? ((g - b) / d) + (g < b ? 6 : 0)
-  			: max === g
-  				? (b - r) / d + 2
-  				: (r - g) / d + 4;
-  		h = h * 60 + 0.5;
-  	}
-  	return [h | 0, s || 0, l];
+    const range = 255;
+    const r = v.r / range;
+    const g = v.g / range;
+    const b = v.b / range;
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const l = (max + min) / 2;
+    let h, s, d;
+    if (max !== min) {
+      d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      h = hueValue(r, g, b, d, max);
+      h = h * 60 + 0.5;
+    }
+    return [h | 0, s || 0, l];
   }
   function calln(f, a, b, c) {
-  	return (
-  		Array.isArray(a)
-  			? f(a[0], a[1], a[2])
-  			: f(a, b, c)
-  	).map(n2b);
+    return (
+      Array.isArray(a)
+        ? f(a[0], a[1], a[2])
+        : f(a, b, c)
+    ).map(n2b);
   }
   function hsl2rgb(h, s, l) {
-  	return calln(hsl2rgbn, h, s, l);
+    return calln(hsl2rgbn, h, s, l);
   }
   function hwb2rgb(h, w, b) {
-  	return calln(hwb2rgbn, h, w, b);
+    return calln(hwb2rgbn, h, w, b);
   }
   function hsv2rgb(h, s, v) {
-  	return calln(hsv2rgbn, h, s, v);
+    return calln(hsv2rgbn, h, s, v);
   }
   function hue(h) {
-  	return (h % 360 + 360) % 360;
+    return (h % 360 + 360) % 360;
   }
   function hueParse(str) {
-  	const m = HUE_RE.exec(str);
-  	let a = 255;
-  	let v;
-  	if (!m) {
-  		return;
-  	}
-  	if (m[5] !== v) {
-  		a = m[6] ? p2b(+m[5]) : n2b(+m[5]);
-  	}
-  	const h = hue(+m[2]);
-  	const p1 = +m[3] / 100;
-  	const p2 = +m[4] / 100;
-  	if (m[1] === 'hwb') {
-  		v = hwb2rgb(h, p1, p2);
-  	} else if (m[1] === 'hsv') {
-  		v = hsv2rgb(h, p1, p2);
-  	} else {
-  		v = hsl2rgb(h, p1, p2);
-  	}
-  	return {
-  		r: v[0],
-  		g: v[1],
-  		b: v[2],
-  		a: a
-  	};
+    const m = HUE_RE.exec(str);
+    let a = 255;
+    let v;
+    if (!m) {
+      return;
+    }
+    if (m[5] !== v) {
+      a = m[6] ? p2b(+m[5]) : n2b(+m[5]);
+    }
+    const h = hue(+m[2]);
+    const p1 = +m[3] / 100;
+    const p2 = +m[4] / 100;
+    if (m[1] === 'hwb') {
+      v = hwb2rgb(h, p1, p2);
+    } else if (m[1] === 'hsv') {
+      v = hsv2rgb(h, p1, p2);
+    } else {
+      v = hsl2rgb(h, p1, p2);
+    }
+    return {
+      r: v[0],
+      g: v[1],
+      b: v[2],
+      a: a
+    };
   }
   function rotate(v, deg) {
-  	var h = rgb2hsl(v);
-  	h[0] = hue(h[0] + deg);
-  	h = hsl2rgb(h);
-  	v.r = h[0];
-  	v.g = h[1];
-  	v.b = h[2];
+    var h = rgb2hsl(v);
+    h[0] = hue(h[0] + deg);
+    h = hsl2rgb(h);
+    v.r = h[0];
+    v.g = h[1];
+    v.b = h[2];
   }
   function hslString(v) {
-  	if (!v) {
-  		return;
-  	}
-  	const a = rgb2hsl(v);
-  	const h = a[0];
-  	const s = n2p(a[1]);
-  	const l = n2p(a[2]);
-  	return v.a < 255
-  		? `hsla(${h}, ${s}%, ${l}%, ${b2n(v.a)})`
-  		: `hsl(${h}, ${s}%, ${l}%)`;
+    if (!v) {
+      return;
+    }
+    const a = rgb2hsl(v);
+    const h = a[0];
+    const s = n2p(a[1]);
+    const l = n2p(a[2]);
+    return v.a < 255
+      ? `hsla(${h}, ${s}%, ${l}%, ${b2n(v.a)})`
+      : `hsl(${h}, ${s}%, ${l}%)`;
   }
-  const map$1$1 = {
-  	x: 'dark',
-  	Z: 'light',
-  	Y: 're',
-  	X: 'blu',
-  	W: 'gr',
-  	V: 'medium',
-  	U: 'slate',
-  	A: 'ee',
-  	T: 'ol',
-  	S: 'or',
-  	B: 'ra',
-  	C: 'lateg',
-  	D: 'ights',
-  	R: 'in',
-  	Q: 'turquois',
-  	E: 'hi',
-  	P: 'ro',
-  	O: 'al',
-  	N: 'le',
-  	M: 'de',
-  	L: 'yello',
-  	F: 'en',
-  	K: 'ch',
-  	G: 'arks',
-  	H: 'ea',
-  	I: 'ightg',
-  	J: 'wh'
+  const map$2 = {
+    x: 'dark',
+    Z: 'light',
+    Y: 're',
+    X: 'blu',
+    W: 'gr',
+    V: 'medium',
+    U: 'slate',
+    A: 'ee',
+    T: 'ol',
+    S: 'or',
+    B: 'ra',
+    C: 'lateg',
+    D: 'ights',
+    R: 'in',
+    Q: 'turquois',
+    E: 'hi',
+    P: 'ro',
+    O: 'al',
+    N: 'le',
+    M: 'de',
+    L: 'yello',
+    F: 'en',
+    K: 'ch',
+    G: 'arks',
+    H: 'ea',
+    I: 'ightg',
+    J: 'wh'
   };
-  const names = {
-  	OiceXe: 'f0f8ff',
-  	antiquewEte: 'faebd7',
-  	aqua: 'ffff',
-  	aquamarRe: '7fffd4',
-  	azuY: 'f0ffff',
-  	beige: 'f5f5dc',
-  	bisque: 'ffe4c4',
-  	black: '0',
-  	blanKedOmond: 'ffebcd',
-  	Xe: 'ff',
-  	XeviTet: '8a2be2',
-  	bPwn: 'a52a2a',
-  	burlywood: 'deb887',
-  	caMtXe: '5f9ea0',
-  	KartYuse: '7fff00',
-  	KocTate: 'd2691e',
-  	cSO: 'ff7f50',
-  	cSnflowerXe: '6495ed',
-  	cSnsilk: 'fff8dc',
-  	crimson: 'dc143c',
-  	cyan: 'ffff',
-  	xXe: '8b',
-  	xcyan: '8b8b',
-  	xgTMnPd: 'b8860b',
-  	xWay: 'a9a9a9',
-  	xgYF: '6400',
-  	xgYy: 'a9a9a9',
-  	xkhaki: 'bdb76b',
-  	xmagFta: '8b008b',
-  	xTivegYF: '556b2f',
-  	xSange: 'ff8c00',
-  	xScEd: '9932cc',
-  	xYd: '8b0000',
-  	xsOmon: 'e9967a',
-  	xsHgYF: '8fbc8f',
-  	xUXe: '483d8b',
-  	xUWay: '2f4f4f',
-  	xUgYy: '2f4f4f',
-  	xQe: 'ced1',
-  	xviTet: '9400d3',
-  	dAppRk: 'ff1493',
-  	dApskyXe: 'bfff',
-  	dimWay: '696969',
-  	dimgYy: '696969',
-  	dodgerXe: '1e90ff',
-  	fiYbrick: 'b22222',
-  	flSOwEte: 'fffaf0',
-  	foYstWAn: '228b22',
-  	fuKsia: 'ff00ff',
-  	gaRsbSo: 'dcdcdc',
-  	ghostwEte: 'f8f8ff',
-  	gTd: 'ffd700',
-  	gTMnPd: 'daa520',
-  	Way: '808080',
-  	gYF: '8000',
-  	gYFLw: 'adff2f',
-  	gYy: '808080',
-  	honeyMw: 'f0fff0',
-  	hotpRk: 'ff69b4',
-  	RdianYd: 'cd5c5c',
-  	Rdigo: '4b0082',
-  	ivSy: 'fffff0',
-  	khaki: 'f0e68c',
-  	lavFMr: 'e6e6fa',
-  	lavFMrXsh: 'fff0f5',
-  	lawngYF: '7cfc00',
-  	NmoncEffon: 'fffacd',
-  	ZXe: 'add8e6',
-  	ZcSO: 'f08080',
-  	Zcyan: 'e0ffff',
-  	ZgTMnPdLw: 'fafad2',
-  	ZWay: 'd3d3d3',
-  	ZgYF: '90ee90',
-  	ZgYy: 'd3d3d3',
-  	ZpRk: 'ffb6c1',
-  	ZsOmon: 'ffa07a',
-  	ZsHgYF: '20b2aa',
-  	ZskyXe: '87cefa',
-  	ZUWay: '778899',
-  	ZUgYy: '778899',
-  	ZstAlXe: 'b0c4de',
-  	ZLw: 'ffffe0',
-  	lime: 'ff00',
-  	limegYF: '32cd32',
-  	lRF: 'faf0e6',
-  	magFta: 'ff00ff',
-  	maPon: '800000',
-  	VaquamarRe: '66cdaa',
-  	VXe: 'cd',
-  	VScEd: 'ba55d3',
-  	VpurpN: '9370db',
-  	VsHgYF: '3cb371',
-  	VUXe: '7b68ee',
-  	VsprRggYF: 'fa9a',
-  	VQe: '48d1cc',
-  	VviTetYd: 'c71585',
-  	midnightXe: '191970',
-  	mRtcYam: 'f5fffa',
-  	mistyPse: 'ffe4e1',
-  	moccasR: 'ffe4b5',
-  	navajowEte: 'ffdead',
-  	navy: '80',
-  	Tdlace: 'fdf5e6',
-  	Tive: '808000',
-  	TivedBb: '6b8e23',
-  	Sange: 'ffa500',
-  	SangeYd: 'ff4500',
-  	ScEd: 'da70d6',
-  	pOegTMnPd: 'eee8aa',
-  	pOegYF: '98fb98',
-  	pOeQe: 'afeeee',
-  	pOeviTetYd: 'db7093',
-  	papayawEp: 'ffefd5',
-  	pHKpuff: 'ffdab9',
-  	peru: 'cd853f',
-  	pRk: 'ffc0cb',
-  	plum: 'dda0dd',
-  	powMrXe: 'b0e0e6',
-  	purpN: '800080',
-  	YbeccapurpN: '663399',
-  	Yd: 'ff0000',
-  	Psybrown: 'bc8f8f',
-  	PyOXe: '4169e1',
-  	saddNbPwn: '8b4513',
-  	sOmon: 'fa8072',
-  	sandybPwn: 'f4a460',
-  	sHgYF: '2e8b57',
-  	sHshell: 'fff5ee',
-  	siFna: 'a0522d',
-  	silver: 'c0c0c0',
-  	skyXe: '87ceeb',
-  	UXe: '6a5acd',
-  	UWay: '708090',
-  	UgYy: '708090',
-  	snow: 'fffafa',
-  	sprRggYF: 'ff7f',
-  	stAlXe: '4682b4',
-  	tan: 'd2b48c',
-  	teO: '8080',
-  	tEstN: 'd8bfd8',
-  	tomato: 'ff6347',
-  	Qe: '40e0d0',
-  	viTet: 'ee82ee',
-  	JHt: 'f5deb3',
-  	wEte: 'ffffff',
-  	wEtesmoke: 'f5f5f5',
-  	Lw: 'ffff00',
-  	LwgYF: '9acd32'
+  const names$1 = {
+    OiceXe: 'f0f8ff',
+    antiquewEte: 'faebd7',
+    aqua: 'ffff',
+    aquamarRe: '7fffd4',
+    azuY: 'f0ffff',
+    beige: 'f5f5dc',
+    bisque: 'ffe4c4',
+    black: '0',
+    blanKedOmond: 'ffebcd',
+    Xe: 'ff',
+    XeviTet: '8a2be2',
+    bPwn: 'a52a2a',
+    burlywood: 'deb887',
+    caMtXe: '5f9ea0',
+    KartYuse: '7fff00',
+    KocTate: 'd2691e',
+    cSO: 'ff7f50',
+    cSnflowerXe: '6495ed',
+    cSnsilk: 'fff8dc',
+    crimson: 'dc143c',
+    cyan: 'ffff',
+    xXe: '8b',
+    xcyan: '8b8b',
+    xgTMnPd: 'b8860b',
+    xWay: 'a9a9a9',
+    xgYF: '6400',
+    xgYy: 'a9a9a9',
+    xkhaki: 'bdb76b',
+    xmagFta: '8b008b',
+    xTivegYF: '556b2f',
+    xSange: 'ff8c00',
+    xScEd: '9932cc',
+    xYd: '8b0000',
+    xsOmon: 'e9967a',
+    xsHgYF: '8fbc8f',
+    xUXe: '483d8b',
+    xUWay: '2f4f4f',
+    xUgYy: '2f4f4f',
+    xQe: 'ced1',
+    xviTet: '9400d3',
+    dAppRk: 'ff1493',
+    dApskyXe: 'bfff',
+    dimWay: '696969',
+    dimgYy: '696969',
+    dodgerXe: '1e90ff',
+    fiYbrick: 'b22222',
+    flSOwEte: 'fffaf0',
+    foYstWAn: '228b22',
+    fuKsia: 'ff00ff',
+    gaRsbSo: 'dcdcdc',
+    ghostwEte: 'f8f8ff',
+    gTd: 'ffd700',
+    gTMnPd: 'daa520',
+    Way: '808080',
+    gYF: '8000',
+    gYFLw: 'adff2f',
+    gYy: '808080',
+    honeyMw: 'f0fff0',
+    hotpRk: 'ff69b4',
+    RdianYd: 'cd5c5c',
+    Rdigo: '4b0082',
+    ivSy: 'fffff0',
+    khaki: 'f0e68c',
+    lavFMr: 'e6e6fa',
+    lavFMrXsh: 'fff0f5',
+    lawngYF: '7cfc00',
+    NmoncEffon: 'fffacd',
+    ZXe: 'add8e6',
+    ZcSO: 'f08080',
+    Zcyan: 'e0ffff',
+    ZgTMnPdLw: 'fafad2',
+    ZWay: 'd3d3d3',
+    ZgYF: '90ee90',
+    ZgYy: 'd3d3d3',
+    ZpRk: 'ffb6c1',
+    ZsOmon: 'ffa07a',
+    ZsHgYF: '20b2aa',
+    ZskyXe: '87cefa',
+    ZUWay: '778899',
+    ZUgYy: '778899',
+    ZstAlXe: 'b0c4de',
+    ZLw: 'ffffe0',
+    lime: 'ff00',
+    limegYF: '32cd32',
+    lRF: 'faf0e6',
+    magFta: 'ff00ff',
+    maPon: '800000',
+    VaquamarRe: '66cdaa',
+    VXe: 'cd',
+    VScEd: 'ba55d3',
+    VpurpN: '9370db',
+    VsHgYF: '3cb371',
+    VUXe: '7b68ee',
+    VsprRggYF: 'fa9a',
+    VQe: '48d1cc',
+    VviTetYd: 'c71585',
+    midnightXe: '191970',
+    mRtcYam: 'f5fffa',
+    mistyPse: 'ffe4e1',
+    moccasR: 'ffe4b5',
+    navajowEte: 'ffdead',
+    navy: '80',
+    Tdlace: 'fdf5e6',
+    Tive: '808000',
+    TivedBb: '6b8e23',
+    Sange: 'ffa500',
+    SangeYd: 'ff4500',
+    ScEd: 'da70d6',
+    pOegTMnPd: 'eee8aa',
+    pOegYF: '98fb98',
+    pOeQe: 'afeeee',
+    pOeviTetYd: 'db7093',
+    papayawEp: 'ffefd5',
+    pHKpuff: 'ffdab9',
+    peru: 'cd853f',
+    pRk: 'ffc0cb',
+    plum: 'dda0dd',
+    powMrXe: 'b0e0e6',
+    purpN: '800080',
+    YbeccapurpN: '663399',
+    Yd: 'ff0000',
+    Psybrown: 'bc8f8f',
+    PyOXe: '4169e1',
+    saddNbPwn: '8b4513',
+    sOmon: 'fa8072',
+    sandybPwn: 'f4a460',
+    sHgYF: '2e8b57',
+    sHshell: 'fff5ee',
+    siFna: 'a0522d',
+    silver: 'c0c0c0',
+    skyXe: '87ceeb',
+    UXe: '6a5acd',
+    UWay: '708090',
+    UgYy: '708090',
+    snow: 'fffafa',
+    sprRggYF: 'ff7f',
+    stAlXe: '4682b4',
+    tan: 'd2b48c',
+    teO: '8080',
+    tEstN: 'd8bfd8',
+    tomato: 'ff6347',
+    Qe: '40e0d0',
+    viTet: 'ee82ee',
+    JHt: 'f5deb3',
+    wEte: 'ffffff',
+    wEtesmoke: 'f5f5f5',
+    Lw: 'ffff00',
+    LwgYF: '9acd32'
   };
   function unpack() {
-  	const unpacked = {};
-  	const keys = Object.keys(names);
-  	const tkeys = Object.keys(map$1$1);
-  	let i, j, k, ok, nk;
-  	for (i = 0; i < keys.length; i++) {
-  		ok = nk = keys[i];
-  		for (j = 0; j < tkeys.length; j++) {
-  			k = tkeys[j];
-  			nk = nk.replace(k, map$1$1[k]);
-  		}
-  		k = parseInt(names[ok], 16);
-  		unpacked[nk] = [k >> 16 & 0xFF, k >> 8 & 0xFF, k & 0xFF];
-  	}
-  	return unpacked;
+    const unpacked = {};
+    const keys = Object.keys(names$1);
+    const tkeys = Object.keys(map$2);
+    let i, j, k, ok, nk;
+    for (i = 0; i < keys.length; i++) {
+      ok = nk = keys[i];
+      for (j = 0; j < tkeys.length; j++) {
+        k = tkeys[j];
+        nk = nk.replace(k, map$2[k]);
+      }
+      k = parseInt(names$1[ok], 16);
+      unpacked[nk] = [k >> 16 & 0xFF, k >> 8 & 0xFF, k & 0xFF];
+    }
+    return unpacked;
   }
-  let names$1;
+  let names;
   function nameParse(str) {
-  	if (!names$1) {
-  		names$1 = unpack();
-  		names$1.transparent = [0, 0, 0, 0];
-  	}
-  	const a = names$1[str.toLowerCase()];
-  	return a && {
-  		r: a[0],
-  		g: a[1],
-  		b: a[2],
-  		a: a.length === 4 ? a[3] : 255
-  	};
+    if (!names) {
+      names = unpack();
+      names.transparent = [0, 0, 0, 0];
+    }
+    const a = names[str.toLowerCase()];
+    return a && {
+      r: a[0],
+      g: a[1],
+      b: a[2],
+      a: a.length === 4 ? a[3] : 255
+    };
+  }
+  const RGB_RE = /^rgba?\(\s*([-+.\d]+)(%)?[\s,]+([-+.e\d]+)(%)?[\s,]+([-+.e\d]+)(%)?(?:[\s,/]+([-+.e\d]+)(%)?)?\s*\)$/;
+  function rgbParse(str) {
+    const m = RGB_RE.exec(str);
+    let a = 255;
+    let r, g, b;
+    if (!m) {
+      return;
+    }
+    if (m[7] !== r) {
+      const v = +m[7];
+      a = m[8] ? p2b(v) : lim(v * 255, 0, 255);
+    }
+    r = +m[1];
+    g = +m[3];
+    b = +m[5];
+    r = 255 & (m[2] ? p2b(r) : lim(r, 0, 255));
+    g = 255 & (m[4] ? p2b(g) : lim(g, 0, 255));
+    b = 255 & (m[6] ? p2b(b) : lim(b, 0, 255));
+    return {
+      r: r,
+      g: g,
+      b: b,
+      a: a
+    };
+  }
+  function rgbString(v) {
+    return v && (
+      v.a < 255
+        ? `rgba(${v.r}, ${v.g}, ${v.b}, ${b2n(v.a)})`
+        : `rgb(${v.r}, ${v.g}, ${v.b})`
+    );
+  }
+  const to = v => v <= 0.0031308 ? v * 12.92 : Math.pow(v, 1.0 / 2.4) * 1.055 - 0.055;
+  const from = v => v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+  function interpolate$1(rgb1, rgb2, t) {
+    const r = from(b2n(rgb1.r));
+    const g = from(b2n(rgb1.g));
+    const b = from(b2n(rgb1.b));
+    return {
+      r: n2b(to(r + t * (from(b2n(rgb2.r)) - r))),
+      g: n2b(to(g + t * (from(b2n(rgb2.g)) - g))),
+      b: n2b(to(b + t * (from(b2n(rgb2.b)) - b))),
+      a: rgb1.a + t * (rgb2.a - rgb1.a)
+    };
   }
   function modHSL(v, i, ratio) {
-  	if (v) {
-  		let tmp = rgb2hsl(v);
-  		tmp[i] = Math.max(0, Math.min(tmp[i] + tmp[i] * ratio, i === 0 ? 360 : 1));
-  		tmp = hsl2rgb(tmp);
-  		v.r = tmp[0];
-  		v.g = tmp[1];
-  		v.b = tmp[2];
-  	}
+    if (v) {
+      let tmp = rgb2hsl(v);
+      tmp[i] = Math.max(0, Math.min(tmp[i] + tmp[i] * ratio, i === 0 ? 360 : 1));
+      tmp = hsl2rgb(tmp);
+      v.r = tmp[0];
+      v.g = tmp[1];
+      v.b = tmp[2];
+    }
   }
   function clone(v, proto) {
-  	return v ? Object.assign(proto || {}, v) : v;
+    return v ? Object.assign(proto || {}, v) : v;
   }
   function fromObject(input) {
-  	var v = {r: 0, g: 0, b: 0, a: 255};
-  	if (Array.isArray(input)) {
-  		if (input.length >= 3) {
-  			v = {r: input[0], g: input[1], b: input[2], a: 255};
-  			if (input.length > 3) {
-  				v.a = n2b(input[3]);
-  			}
-  		}
-  	} else {
-  		v = clone(input, {r: 0, g: 0, b: 0, a: 1});
-  		v.a = n2b(v.a);
-  	}
-  	return v;
+    var v = {r: 0, g: 0, b: 0, a: 255};
+    if (Array.isArray(input)) {
+      if (input.length >= 3) {
+        v = {r: input[0], g: input[1], b: input[2], a: 255};
+        if (input.length > 3) {
+          v.a = n2b(input[3]);
+        }
+      }
+    } else {
+      v = clone(input, {r: 0, g: 0, b: 0, a: 1});
+      v.a = n2b(v.a);
+    }
+    return v;
   }
   function functionParse(str) {
-  	if (str.charAt(0) === 'r') {
-  		return rgbParse(str);
-  	}
-  	return hueParse(str);
+    if (str.charAt(0) === 'r') {
+      return rgbParse(str);
+    }
+    return hueParse(str);
   }
   class Color {
-  	constructor(input) {
-  		if (input instanceof Color) {
-  			return input;
-  		}
-  		const type = typeof input;
-  		let v;
-  		if (type === 'object') {
-  			v = fromObject(input);
-  		} else if (type === 'string') {
-  			v = hexParse(input) || nameParse(input) || functionParse(input);
-  		}
-  		this._rgb = v;
-  		this._valid = !!v;
-  	}
-  	get valid() {
-  		return this._valid;
-  	}
-  	get rgb() {
-  		var v = clone(this._rgb);
-  		if (v) {
-  			v.a = b2n(v.a);
-  		}
-  		return v;
-  	}
-  	set rgb(obj) {
-  		this._rgb = fromObject(obj);
-  	}
-  	rgbString() {
-  		return this._valid ? rgbString(this._rgb) : this._rgb;
-  	}
-  	hexString() {
-  		return this._valid ? hexString(this._rgb) : this._rgb;
-  	}
-  	hslString() {
-  		return this._valid ? hslString(this._rgb) : this._rgb;
-  	}
-  	mix(color, weight) {
-  		const me = this;
-  		if (color) {
-  			const c1 = me.rgb;
-  			const c2 = color.rgb;
-  			let w2;
-  			const p = weight === w2 ? 0.5 : weight;
-  			const w = 2 * p - 1;
-  			const a = c1.a - c2.a;
-  			const w1 = ((w * a === -1 ? w : (w + a) / (1 + w * a)) + 1) / 2.0;
-  			w2 = 1 - w1;
-  			c1.r = 0xFF & w1 * c1.r + w2 * c2.r + 0.5;
-  			c1.g = 0xFF & w1 * c1.g + w2 * c2.g + 0.5;
-  			c1.b = 0xFF & w1 * c1.b + w2 * c2.b + 0.5;
-  			c1.a = p * c1.a + (1 - p) * c2.a;
-  			me.rgb = c1;
-  		}
-  		return me;
-  	}
-  	clone() {
-  		return new Color(this.rgb);
-  	}
-  	alpha(a) {
-  		this._rgb.a = n2b(a);
-  		return this;
-  	}
-  	clearer(ratio) {
-  		const rgb = this._rgb;
-  		rgb.a *= 1 - ratio;
-  		return this;
-  	}
-  	greyscale() {
-  		const rgb = this._rgb;
-  		const val = round(rgb.r * 0.3 + rgb.g * 0.59 + rgb.b * 0.11);
-  		rgb.r = rgb.g = rgb.b = val;
-  		return this;
-  	}
-  	opaquer(ratio) {
-  		const rgb = this._rgb;
-  		rgb.a *= 1 + ratio;
-  		return this;
-  	}
-  	negate() {
-  		const v = this._rgb;
-  		v.r = 255 - v.r;
-  		v.g = 255 - v.g;
-  		v.b = 255 - v.b;
-  		return this;
-  	}
-  	lighten(ratio) {
-  		modHSL(this._rgb, 2, ratio);
-  		return this;
-  	}
-  	darken(ratio) {
-  		modHSL(this._rgb, 2, -ratio);
-  		return this;
-  	}
-  	saturate(ratio) {
-  		modHSL(this._rgb, 1, ratio);
-  		return this;
-  	}
-  	desaturate(ratio) {
-  		modHSL(this._rgb, 1, -ratio);
-  		return this;
-  	}
-  	rotate(deg) {
-  		rotate(this._rgb, deg);
-  		return this;
-  	}
+    constructor(input) {
+      if (input instanceof Color) {
+        return input;
+      }
+      const type = typeof input;
+      let v;
+      if (type === 'object') {
+        v = fromObject(input);
+      } else if (type === 'string') {
+        v = hexParse(input) || nameParse(input) || functionParse(input);
+      }
+      this._rgb = v;
+      this._valid = !!v;
+    }
+    get valid() {
+      return this._valid;
+    }
+    get rgb() {
+      var v = clone(this._rgb);
+      if (v) {
+        v.a = b2n(v.a);
+      }
+      return v;
+    }
+    set rgb(obj) {
+      this._rgb = fromObject(obj);
+    }
+    rgbString() {
+      return this._valid ? rgbString(this._rgb) : undefined;
+    }
+    hexString() {
+      return this._valid ? hexString(this._rgb) : undefined;
+    }
+    hslString() {
+      return this._valid ? hslString(this._rgb) : undefined;
+    }
+    mix(color, weight) {
+      if (color) {
+        const c1 = this.rgb;
+        const c2 = color.rgb;
+        let w2;
+        const p = weight === w2 ? 0.5 : weight;
+        const w = 2 * p - 1;
+        const a = c1.a - c2.a;
+        const w1 = ((w * a === -1 ? w : (w + a) / (1 + w * a)) + 1) / 2.0;
+        w2 = 1 - w1;
+        c1.r = 0xFF & w1 * c1.r + w2 * c2.r + 0.5;
+        c1.g = 0xFF & w1 * c1.g + w2 * c2.g + 0.5;
+        c1.b = 0xFF & w1 * c1.b + w2 * c2.b + 0.5;
+        c1.a = p * c1.a + (1 - p) * c2.a;
+        this.rgb = c1;
+      }
+      return this;
+    }
+    interpolate(color, t) {
+      if (color) {
+        this._rgb = interpolate$1(this._rgb, color._rgb, t);
+      }
+      return this;
+    }
+    clone() {
+      return new Color(this.rgb);
+    }
+    alpha(a) {
+      this._rgb.a = n2b(a);
+      return this;
+    }
+    clearer(ratio) {
+      const rgb = this._rgb;
+      rgb.a *= 1 - ratio;
+      return this;
+    }
+    greyscale() {
+      const rgb = this._rgb;
+      const val = round(rgb.r * 0.3 + rgb.g * 0.59 + rgb.b * 0.11);
+      rgb.r = rgb.g = rgb.b = val;
+      return this;
+    }
+    opaquer(ratio) {
+      const rgb = this._rgb;
+      rgb.a *= 1 + ratio;
+      return this;
+    }
+    negate() {
+      const v = this._rgb;
+      v.r = 255 - v.r;
+      v.g = 255 - v.g;
+      v.b = 255 - v.b;
+      return this;
+    }
+    lighten(ratio) {
+      modHSL(this._rgb, 2, ratio);
+      return this;
+    }
+    darken(ratio) {
+      modHSL(this._rgb, 2, -ratio);
+      return this;
+    }
+    saturate(ratio) {
+      modHSL(this._rgb, 1, ratio);
+      return this;
+    }
+    desaturate(ratio) {
+      modHSL(this._rgb, 1, -ratio);
+      return this;
+    }
+    rotate(deg) {
+      rotate(this._rgb, deg);
+      return this;
+    }
   }
   function index_esm(input) {
-  	return new Color(input);
+    return new Color(input);
   }
 
-  const isPatternOrGradient = (value) => value instanceof CanvasGradient || value instanceof CanvasPattern;
+  function isPatternOrGradient(value) {
+    if (value && typeof value === 'object') {
+      const type = value.toString();
+      return type === '[object CanvasPattern]' || type === '[object CanvasGradient]';
+    }
+    return false;
+  }
   function color(value) {
     return isPatternOrGradient(value) ? value : index_esm(value);
   }
@@ -1091,7 +1276,8 @@
       this.indexAxis = 'x';
       this.interaction = {
         mode: 'nearest',
-        intersect: true
+        intersect: true,
+        includeInvisible: false
       };
       this.maintainAspectRatio = true;
       this.onHover = null;
@@ -1225,7 +1411,10 @@
     ctx.restore();
   }
   function drawPoint(ctx, options, x, y) {
-    let type, xOffset, yOffset, size, cornerRadius;
+    drawPointLegend(ctx, options, x, y, null);
+  }
+  function drawPointLegend(ctx, options, x, y, w) {
+    let type, xOffset, yOffset, size, cornerRadius, width;
     const style = options.pointStyle;
     const rotation = options.rotation;
     const radius = options.radius;
@@ -1247,7 +1436,11 @@
     ctx.beginPath();
     switch (style) {
     default:
-      ctx.arc(x, y, radius, 0, TAU);
+      if (w) {
+        ctx.ellipse(x, y, w / 2, radius, 0, 0, TAU);
+      } else {
+        ctx.arc(x, y, radius, 0, TAU);
+      }
       ctx.closePath();
       break;
     case 'triangle':
@@ -1263,16 +1456,17 @@
       size = radius - cornerRadius;
       xOffset = Math.cos(rad + QUARTER_PI) * size;
       yOffset = Math.sin(rad + QUARTER_PI) * size;
-      ctx.arc(x - xOffset, y - yOffset, cornerRadius, rad - PI$1, rad - HALF_PI);
+      ctx.arc(x - xOffset, y - yOffset, cornerRadius, rad - PI, rad - HALF_PI);
       ctx.arc(x + yOffset, y - xOffset, cornerRadius, rad - HALF_PI, rad);
       ctx.arc(x + xOffset, y + yOffset, cornerRadius, rad, rad + HALF_PI);
-      ctx.arc(x - yOffset, y + xOffset, cornerRadius, rad + HALF_PI, rad + PI$1);
+      ctx.arc(x - yOffset, y + xOffset, cornerRadius, rad + HALF_PI, rad + PI);
       ctx.closePath();
       break;
     case 'rect':
       if (!rotation) {
         size = Math.SQRT1_2 * radius;
-        ctx.rect(x - size, y - size, 2 * size, 2 * size);
+        width = w ? w / 2 : size;
+        ctx.rect(x - width, y - size, 2 * width, 2 * size);
         break;
       }
       rad += QUARTER_PI;
@@ -1311,7 +1505,7 @@
       ctx.lineTo(x - yOffset, y + xOffset);
       break;
     case 'line':
-      xOffset = Math.cos(rad) * radius;
+      xOffset = w ? w / 2 : Math.cos(rad) * radius;
       yOffset = Math.sin(rad) * radius;
       ctx.moveTo(x - xOffset, y - yOffset);
       ctx.lineTo(x + xOffset, y + yOffset);
@@ -1426,9 +1620,9 @@
   }
   function addRoundedRectPath(ctx, rect) {
     const {x, y, w, h, radius} = rect;
-    ctx.arc(x + radius.topLeft, y + radius.topLeft, radius.topLeft, -HALF_PI, PI$1, true);
+    ctx.arc(x + radius.topLeft, y + radius.topLeft, radius.topLeft, -HALF_PI, PI, true);
     ctx.lineTo(x, y + h - radius.bottomLeft);
-    ctx.arc(x + radius.bottomLeft, y + h - radius.bottomLeft, radius.bottomLeft, PI$1, HALF_PI, true);
+    ctx.arc(x + radius.bottomLeft, y + h - radius.bottomLeft, radius.bottomLeft, PI, HALF_PI, true);
     ctx.lineTo(x + w - radius.bottomRight, y + h);
     ctx.arc(x + w - radius.bottomRight, y + h - radius.bottomRight, radius.bottomRight, HALF_PI, 0, true);
     ctx.lineTo(x + w, y + radius.topRight);
@@ -1538,99 +1732,6 @@
   }
   function createContext(parentContext, context) {
     return Object.assign(Object.create(parentContext), context);
-  }
-
-  function _lookup(table, value, cmp) {
-    cmp = cmp || ((index) => table[index] < value);
-    let hi = table.length - 1;
-    let lo = 0;
-    let mid;
-    while (hi - lo > 1) {
-      mid = (lo + hi) >> 1;
-      if (cmp(mid)) {
-        lo = mid;
-      } else {
-        hi = mid;
-      }
-    }
-    return {lo, hi};
-  }
-  const _lookupByKey = (table, key, value) =>
-    _lookup(table, value, index => table[index][key] < value);
-  const _rlookupByKey = (table, key, value) =>
-    _lookup(table, value, index => table[index][key] >= value);
-  function _filterBetween(values, min, max) {
-    let start = 0;
-    let end = values.length;
-    while (start < end && values[start] < min) {
-      start++;
-    }
-    while (end > start && values[end - 1] > max) {
-      end--;
-    }
-    return start > 0 || end < values.length
-      ? values.slice(start, end)
-      : values;
-  }
-  const arrayEvents = ['push', 'pop', 'shift', 'splice', 'unshift'];
-  function listenArrayEvents(array, listener) {
-    if (array._chartjs) {
-      array._chartjs.listeners.push(listener);
-      return;
-    }
-    Object.defineProperty(array, '_chartjs', {
-      configurable: true,
-      enumerable: false,
-      value: {
-        listeners: [listener]
-      }
-    });
-    arrayEvents.forEach((key) => {
-      const method = '_onData' + _capitalize(key);
-      const base = array[key];
-      Object.defineProperty(array, key, {
-        configurable: true,
-        enumerable: false,
-        value(...args) {
-          const res = base.apply(this, args);
-          array._chartjs.listeners.forEach((object) => {
-            if (typeof object[method] === 'function') {
-              object[method](...args);
-            }
-          });
-          return res;
-        }
-      });
-    });
-  }
-  function unlistenArrayEvents(array, listener) {
-    const stub = array._chartjs;
-    if (!stub) {
-      return;
-    }
-    const listeners = stub.listeners;
-    const index = listeners.indexOf(listener);
-    if (index !== -1) {
-      listeners.splice(index, 1);
-    }
-    if (listeners.length > 0) {
-      return;
-    }
-    arrayEvents.forEach((key) => {
-      delete array[key];
-    });
-    delete array._chartjs;
-  }
-  function _arrayUnique(items) {
-    const set = new Set();
-    let i, ilen;
-    for (i = 0, ilen = items.length; i < ilen; ++i) {
-      set.add(items[i]);
-    }
-    if (set.size === ilen) {
-      return items;
-    }
-    return Array.from(set);
   }
 
   function _createResolver(scopes, prefixes = [''], rootScopes = scopes, fallback, getTarget = () => scopes[0]) {
@@ -1876,8 +1977,22 @@
     }
     return Array.from(set);
   }
+  function _parseObjectDataRadialScale(meta, data, start, count) {
+    const {iScale} = meta;
+    const {key = 'r'} = this._parsing;
+    const parsed = new Array(count);
+    let i, ilen, index, item;
+    for (i = 0, ilen = count; i < ilen; ++i) {
+      index = i + start;
+      item = data[index];
+      parsed[i] = {
+        r: iScale.parse(resolveObjectKey(item, key), index)
+      };
+    }
+    return parsed;
+  }
 
-  const EPSILON = Number.EPSILON || 1e-14;
+  const EPSILON$1 = Number.EPSILON || 1e-14;
   const getPoint = (points, i) => i < points.length && !points[i].skip && points[i];
   const getValueAxis = (indexAxis) => indexAxis === 'x' ? 'y' : 'x';
   function splineCurve(firstPoint, middlePoint, afterPoint, t) {
@@ -1913,7 +2028,7 @@
       if (!pointCurrent || !pointAfter) {
         continue;
       }
-      if (almostEquals(deltaK[i], 0, EPSILON)) {
+      if (almostEquals(deltaK[i], 0, EPSILON$1)) {
         mK[i] = mK[i + 1] = 0;
         continue;
       }
@@ -2059,12 +2174,12 @@
   function getStyle(el, property) {
     return getComputedStyle$1(el).getPropertyValue(property);
   }
-  const positions = ['top', 'right', 'bottom', 'left'];
+  const positions$1 = ['top', 'right', 'bottom', 'left'];
   function getPositionedStyle(styles, style, suffix) {
     const result = {};
     suffix = suffix ? '-' + suffix : '';
     for (let i = 0; i < 4; i++) {
-      const pos = positions[i];
+      const pos = positions$1[i];
       result[pos] = parseFloat(styles[style + '-' + pos + suffix]) || 0;
     }
     result.width = result.left + result.right;
@@ -2072,8 +2187,7 @@
     return result;
   }
   const useOffsetPos = (x, y, target) => (x > 0 || y > 0) && (!target || !target.shadowRoot);
-  function getCanvasPosition(evt, canvas) {
-    const e = evt.native || evt;
+  function getCanvasPosition(e, canvas) {
     const touches = e.touches;
     const source = touches && touches.length ? touches[0] : e;
     const {offsetX, offsetY} = source;
@@ -2090,7 +2204,10 @@
     }
     return {x, y, box};
   }
-  function getRelativePosition$2(evt, chart) {
+  function getRelativePosition$1(evt, chart) {
+    if ('native' in evt) {
+      return evt;
+    }
     const {canvas, currentDevicePixelRatio} = chart;
     const style = getComputedStyle$1(canvas);
     const borderBox = style.boxSizing === 'border-box';
@@ -2542,9 +2659,9 @@
   }
 
   /*!
-   * Chart.js v3.7.0
+   * Chart.js v3.9.1
    * https://www.chartjs.org
-   * (c) 2021 Chart.js Contributors
+   * (c) 2022 Chart.js Contributors
    * Released under the MIT License
    */
 
@@ -3156,6 +3273,7 @@
       this._drawStart = undefined;
       this._drawCount = undefined;
       this.enableOptionSharing = false;
+      this.supportsDecimation = false;
       this.$context = undefined;
       this._syncList = [];
       this.initialize();
@@ -3556,6 +3674,14 @@
     includeOptions(mode, sharedOptions) {
       return !sharedOptions || isDirectUpdateMode(mode) || this.chart._animationsDisabled;
     }
+    _getSharedOptions(start, mode) {
+      const firstOpts = this.resolveDataElementOptions(start, mode);
+      const previouslySharedOptions = this._sharedOptions;
+      const sharedOptions = this.getSharedOptions(firstOpts);
+      const includeOptions = this.includeOptions(mode, sharedOptions) || (sharedOptions !== previouslySharedOptions);
+      this.updateSharedOptions(sharedOptions, mode, firstOpts);
+      return {sharedOptions, includeOptions};
+    }
     updateElement(element, index, properties, mode) {
       if (isDirectUpdateMode(mode)) {
         Object.assign(element, properties);
@@ -3834,6 +3960,10 @@
       properties.borderSkipped = res;
       return;
     }
+    if (edge === true) {
+      properties.borderSkipped = {top: true, right: true, bottom: true, left: true};
+      return;
+    }
     const {start, end, reverse, top, bottom} = borderProps(properties);
     if (edge === 'middle' && stack) {
       properties.enableBorderRadius = true;
@@ -3931,10 +4061,7 @@
       const base = vScale.getBasePixel();
       const horizontal = vScale.isHorizontal();
       const ruler = this._getRuler();
-      const firstOpts = this.resolveDataElementOptions(start, mode);
-      const sharedOptions = this.getSharedOptions(firstOpts);
-      const includeOptions = this.includeOptions(mode, sharedOptions);
-      this.updateSharedOptions(sharedOptions, mode, firstOpts);
+      const {sharedOptions, includeOptions} = this._getSharedOptions(start, mode);
       for (let i = start; i < start + count; i++) {
         const parsed = this.getParsed(i);
         const vpixels = reset || isNullOrUndef(parsed[vScale.axis]) ? {base, head: base} : this._calculateBarValuePixels(i);
@@ -3959,31 +4086,27 @@
       }
     }
     _getStacks(last, dataIndex) {
-      const meta = this._cachedMeta;
-      const iScale = meta.iScale;
-      const metasets = iScale.getMatchingVisibleMetas(this._type);
+      const {iScale} = this._cachedMeta;
+      const metasets = iScale.getMatchingVisibleMetas(this._type)
+        .filter(meta => meta.controller.options.grouped);
       const stacked = iScale.options.stacked;
-      const ilen = metasets.length;
       const stacks = [];
-      let i, item;
-      for (i = 0; i < ilen; ++i) {
-        item = metasets[i];
-        if (!item.controller.options.grouped) {
+      const skipNull = (meta) => {
+        const parsed = meta.controller.getParsed(dataIndex);
+        const val = parsed && parsed[meta.vScale.axis];
+        if (isNullOrUndef(val) || isNaN(val)) {
+          return true;
+        }
+      };
+      for (const meta of metasets) {
+        if (dataIndex !== undefined && skipNull(meta)) {
           continue;
         }
-        if (typeof dataIndex !== 'undefined') {
-          const val = item.controller.getParsed(dataIndex)[
-            item.controller._cachedMeta.vScale.axis
-          ];
-          if (isNullOrUndef(val) || isNaN(val)) {
-            continue;
-          }
+        if (stacked === false || stacks.indexOf(meta.stack) === -1 ||
+  				(stacked === undefined && meta.stack === undefined)) {
+          stacks.push(meta.stack);
         }
-        if (stacked === false || stacks.indexOf(item.stack) === -1 ||
-  				(stacked === undefined && item.stack === undefined)) {
-          stacks.push(item.stack);
-        }
-        if (item.index === last) {
+        if (meta.index === last) {
           break;
         }
       }
@@ -4061,6 +4184,11 @@
         if (value === actualBase) {
           base -= size / 2;
         }
+        const startPixel = vScale.getPixelForDecimal(0);
+        const endPixel = vScale.getPixelForDecimal(1);
+        const min = Math.min(startPixel, endPixel);
+        const max = Math.max(startPixel, endPixel);
+        base = Math.max(Math.min(base, max), min);
         head = base + size;
       }
       if (base === vScale.getPixelForValue(actualBase)) {
@@ -4198,9 +4326,7 @@
     updateElements(points, start, count, mode) {
       const reset = mode === 'reset';
       const {iScale, vScale} = this._cachedMeta;
-      const firstOpts = this.resolveDataElementOptions(start, mode);
-      const sharedOptions = this.getSharedOptions(firstOpts);
-      const includeOptions = this.includeOptions(mode, sharedOptions);
+      const {sharedOptions, includeOptions} = this._getSharedOptions(start, mode);
       const iAxis = iScale.axis;
       const vAxis = vScale.axis;
       for (let i = start; i < start + count; i++) {
@@ -4211,14 +4337,13 @@
         const vPixel = properties[vAxis] = reset ? vScale.getBasePixel() : vScale.getPixelForValue(parsed[vAxis]);
         properties.skip = isNaN(iPixel) || isNaN(vPixel);
         if (includeOptions) {
-          properties.options = this.resolveDataElementOptions(i, point.active ? 'active' : mode);
+          properties.options = sharedOptions || this.resolveDataElementOptions(i, point.active ? 'active' : mode);
           if (reset) {
             properties.options.radius = 0;
           }
         }
         this.updateElement(point, i, properties, mode);
       }
-      this.updateSharedOptions(sharedOptions, mode, firstOpts);
     }
     resolveDataElementOptions(index, mode) {
       const parsed = this.getParsed(index);
@@ -4281,8 +4406,8 @@
       const calcMin = (angle, a, b) => _angleBetween(angle, startAngle, endAngle, true) ? -1 : Math.min(a, a * cutout, b, b * cutout);
       const maxX = calcMax(0, startX, endX);
       const maxY = calcMax(HALF_PI, startY, endY);
-      const minX = calcMin(PI$1, startX, endX);
-      const minY = calcMin(PI$1 + HALF_PI, startY, endY);
+      const minX = calcMin(PI, startX, endX);
+      const minY = calcMin(PI + HALF_PI, startY, endY);
       ratioX = (maxX - minX) / 2;
       ratioY = (maxY - minY) / 2;
       offsetX = -(maxX + minX) / 2;
@@ -4384,9 +4509,7 @@
       const animateScale = reset && animationOpts.animateScale;
       const innerRadius = animateScale ? 0 : this.innerRadius;
       const outerRadius = animateScale ? 0 : this.outerRadius;
-      const firstOpts = this.resolveDataElementOptions(start, mode);
-      const sharedOptions = this.getSharedOptions(firstOpts);
-      const includeOptions = this.includeOptions(mode, sharedOptions);
+      const {sharedOptions, includeOptions} = this._getSharedOptions(start, mode);
       let startAngle = this._getRotation();
       let i;
       for (i = 0; i < start; ++i) {
@@ -4410,7 +4533,6 @@
         startAngle += circumference;
         this.updateElement(arc, i, properties, mode);
       }
-      this.updateSharedOptions(sharedOptions, mode, firstOpts);
     }
     calculateTotal() {
       const meta = this._cachedMeta;
@@ -4571,16 +4693,17 @@
   class LineController extends DatasetController {
     initialize() {
       this.enableOptionSharing = true;
+      this.supportsDecimation = true;
       super.initialize();
     }
     update(mode) {
       const meta = this._cachedMeta;
       const {dataset: line, data: points = [], _dataset} = meta;
       const animationsDisabled = this.chart._animationsDisabled;
-      let {start, count} = getStartAndCountOfVisiblePoints(meta, points, animationsDisabled);
+      let {start, count} = _getStartAndCountOfVisiblePoints(meta, points, animationsDisabled);
       this._drawStart = start;
       this._drawCount = count;
-      if (scaleRangesChanged(meta)) {
+      if (_scaleRangesChanged(meta)) {
         start = 0;
         count = points.length;
       }
@@ -4602,9 +4725,7 @@
     updateElements(points, start, count, mode) {
       const reset = mode === 'reset';
       const {iScale, vScale, _stacked, _dataset} = this._cachedMeta;
-      const firstOpts = this.resolveDataElementOptions(start, mode);
-      const sharedOptions = this.getSharedOptions(firstOpts);
-      const includeOptions = this.includeOptions(mode, sharedOptions);
+      const {sharedOptions, includeOptions} = this._getSharedOptions(start, mode);
       const iAxis = iScale.axis;
       const vAxis = vScale.axis;
       const {spanGaps, segment} = this.options;
@@ -4619,7 +4740,7 @@
         const iPixel = properties[iAxis] = iScale.getPixelForValue(parsed[iAxis], i);
         const vPixel = properties[vAxis] = reset || nullData ? vScale.getBasePixel() : vScale.getPixelForValue(_stacked ? this.applyStack(vScale, parsed, _stacked) : parsed[vAxis], i);
         properties.skip = isNaN(iPixel) || isNaN(vPixel) || nullData;
-        properties.stop = i > 0 && (parsed[iAxis] - prevParsed[iAxis]) > maxGapLength;
+        properties.stop = i > 0 && (Math.abs(parsed[iAxis] - prevParsed[iAxis])) > maxGapLength;
         if (segment) {
           properties.parsed = parsed;
           properties.raw = _dataset.data[i];
@@ -4632,7 +4753,6 @@
         }
         prevParsed = parsed;
       }
-      this.updateSharedOptions(sharedOptions, mode, firstOpts);
     }
     getMaxOverflow() {
       const meta = this._cachedMeta;
@@ -4669,50 +4789,6 @@
       },
     }
   };
-  function getStartAndCountOfVisiblePoints(meta, points, animationsDisabled) {
-    const pointCount = points.length;
-    let start = 0;
-    let count = pointCount;
-    if (meta._sorted) {
-      const {iScale, _parsed} = meta;
-      const axis = iScale.axis;
-      const {min, max, minDefined, maxDefined} = iScale.getUserBounds();
-      if (minDefined) {
-        start = _limitValue(Math.min(
-          _lookupByKey(_parsed, iScale.axis, min).lo,
-          animationsDisabled ? pointCount : _lookupByKey(points, axis, iScale.getPixelForValue(min)).lo),
-        0, pointCount - 1);
-      }
-      if (maxDefined) {
-        count = _limitValue(Math.max(
-          _lookupByKey(_parsed, iScale.axis, max).hi + 1,
-          animationsDisabled ? 0 : _lookupByKey(points, axis, iScale.getPixelForValue(max)).hi + 1),
-        start, pointCount) - start;
-      } else {
-        count = pointCount - start;
-      }
-    }
-    return {start, count};
-  }
-  function scaleRangesChanged(meta) {
-    const {xScale, yScale, _scaleRanges} = meta;
-    const newRanges = {
-      xmin: xScale.min,
-      xmax: xScale.max,
-      ymin: yScale.min,
-      ymax: yScale.max
-    };
-    if (!_scaleRanges) {
-      meta._scaleRanges = newRanges;
-      return true;
-    }
-    const changed = _scaleRanges.xmin !== xScale.min
-  		|| _scaleRanges.xmax !== xScale.max
-  		|| _scaleRanges.ymin !== yScale.min
-  		|| _scaleRanges.ymax !== yScale.max;
-    Object.assign(_scaleRanges, newRanges);
-    return changed;
-  }
 
   class PolarAreaController extends DatasetController {
     constructor(chart, datasetIndex) {
@@ -4730,10 +4806,29 @@
         value,
       };
     }
+    parseObjectData(meta, data, start, count) {
+      return _parseObjectDataRadialScale.bind(this)(meta, data, start, count);
+    }
     update(mode) {
       const arcs = this._cachedMeta.data;
       this._updateRadius();
       this.updateElements(arcs, 0, arcs.length, mode);
+    }
+    getMinMax() {
+      const meta = this._cachedMeta;
+      const range = {min: Number.POSITIVE_INFINITY, max: Number.NEGATIVE_INFINITY};
+      meta.data.forEach((element, index) => {
+        const parsed = this.getParsed(index).r;
+        if (!isNaN(parsed) && this.chart.getDataVisibility(index)) {
+          if (parsed < range.min) {
+            range.min = parsed;
+          }
+          if (parsed > range.max) {
+            range.max = parsed;
+          }
+        }
+      });
+      return range;
     }
     _updateRadius() {
       const chart = this.chart;
@@ -4749,13 +4844,12 @@
     updateElements(arcs, start, count, mode) {
       const reset = mode === 'reset';
       const chart = this.chart;
-      const dataset = this.getDataset();
       const opts = chart.options;
       const animationOpts = opts.animation;
       const scale = this._cachedMeta.rScale;
       const centerX = scale.xCenter;
       const centerY = scale.yCenter;
-      const datasetStartAngle = scale.getIndexAngle(0) - 0.5 * PI$1;
+      const datasetStartAngle = scale.getIndexAngle(0) - 0.5 * PI;
       let angle = datasetStartAngle;
       let i;
       const defaultAngle = 360 / this.countVisibleElements();
@@ -4766,7 +4860,7 @@
         const arc = arcs[i];
         let startAngle = angle;
         let endAngle = angle + this._computeAngle(i, mode, defaultAngle);
-        let outerRadius = chart.getDataVisibility(i) ? scale.getDistanceFromCenterForValue(dataset.data[i]) : 0;
+        let outerRadius = chart.getDataVisibility(i) ? scale.getDistanceFromCenterForValue(this.getParsed(i).r) : 0;
         angle = endAngle;
         if (reset) {
           if (animationOpts.animateScale) {
@@ -4789,11 +4883,10 @@
       }
     }
     countVisibleElements() {
-      const dataset = this.getDataset();
       const meta = this._cachedMeta;
       let count = 0;
       meta.data.forEach((element, index) => {
-        if (!isNaN(dataset.data[index]) && this.chart.getDataVisibility(index)) {
+        if (!isNaN(this.getParsed(index).r) && this.chart.getDataVisibility(index)) {
           count++;
         }
       });
@@ -4900,6 +4993,9 @@
         value: '' + vScale.getLabelForValue(parsed[vScale.axis])
       };
     }
+    parseObjectData(meta, data, start, count) {
+      return _parseObjectDataRadialScale.bind(this)(meta, data, start, count);
+    }
     update(mode) {
       const meta = this._cachedMeta;
       const line = meta.dataset;
@@ -4921,13 +5017,12 @@
       this.updateElements(points, 0, points.length, mode);
     }
     updateElements(points, start, count, mode) {
-      const dataset = this.getDataset();
       const scale = this._cachedMeta.rScale;
       const reset = mode === 'reset';
       for (let i = start; i < start + count; i++) {
         const point = points[i];
         const options = this.resolveDataElementOptions(i, point.active ? 'active' : mode);
-        const pointPosition = scale.getPointPositionForValue(i, dataset.data[i]);
+        const pointPosition = scale.getPointPositionForValue(i, this.getParsed(i).r);
         const x = reset ? scale.xCenter : pointPosition.x;
         const y = reset ? scale.yCenter : pointPosition.y;
         const properties = {
@@ -4962,881 +5057,6 @@
     }
   };
 
-  class ScatterController extends LineController {
-  }
-  ScatterController.id = 'scatter';
-  ScatterController.defaults = {
-    showLine: false,
-    fill: false
-  };
-  ScatterController.overrides = {
-    interaction: {
-      mode: 'point'
-    },
-    plugins: {
-      tooltip: {
-        callbacks: {
-          title() {
-            return '';
-          },
-          label(item) {
-            return '(' + item.label + ', ' + item.formattedValue + ')';
-          }
-        }
-      }
-    },
-    scales: {
-      x: {
-        type: 'linear'
-      },
-      y: {
-        type: 'linear'
-      }
-    }
-  };
-
-  var controllers = /*#__PURE__*/Object.freeze({
-  __proto__: null,
-  BarController: BarController,
-  BubbleController: BubbleController,
-  DoughnutController: DoughnutController,
-  LineController: LineController,
-  PolarAreaController: PolarAreaController,
-  PieController: PieController,
-  RadarController: RadarController,
-  ScatterController: ScatterController
-  });
-
-  function abstract() {
-    throw new Error('This method is not implemented: Check that a complete date adapter is provided.');
-  }
-  class DateAdapter {
-    constructor(options) {
-      this.options = options || {};
-    }
-    formats() {
-      return abstract();
-    }
-    parse(value, format) {
-      return abstract();
-    }
-    format(timestamp, format) {
-      return abstract();
-    }
-    add(timestamp, amount, unit) {
-      return abstract();
-    }
-    diff(a, b, unit) {
-      return abstract();
-    }
-    startOf(timestamp, unit, weekday) {
-      return abstract();
-    }
-    endOf(timestamp, unit) {
-      return abstract();
-    }
-  }
-  DateAdapter.override = function(members) {
-    Object.assign(DateAdapter.prototype, members);
-  };
-  var adapters = {
-    _date: DateAdapter
-  };
-
-  function getRelativePosition$1(e, chart) {
-    if ('native' in e) {
-      return {
-        x: e.x,
-        y: e.y
-      };
-    }
-    return getRelativePosition$2(e, chart);
-  }
-  function evaluateAllVisibleItems(chart, handler) {
-    const metasets = chart.getSortedVisibleDatasetMetas();
-    let index, data, element;
-    for (let i = 0, ilen = metasets.length; i < ilen; ++i) {
-      ({index, data} = metasets[i]);
-      for (let j = 0, jlen = data.length; j < jlen; ++j) {
-        element = data[j];
-        if (!element.skip) {
-          handler(element, index, j);
-        }
-      }
-    }
-  }
-  function binarySearch(metaset, axis, value, intersect) {
-    const {controller, data, _sorted} = metaset;
-    const iScale = controller._cachedMeta.iScale;
-    if (iScale && axis === iScale.axis && axis !== 'r' && _sorted && data.length) {
-      const lookupMethod = iScale._reversePixels ? _rlookupByKey : _lookupByKey;
-      if (!intersect) {
-        return lookupMethod(data, axis, value);
-      } else if (controller._sharedOptions) {
-        const el = data[0];
-        const range = typeof el.getRange === 'function' && el.getRange(axis);
-        if (range) {
-          const start = lookupMethod(data, axis, value - range);
-          const end = lookupMethod(data, axis, value + range);
-          return {lo: start.lo, hi: end.hi};
-        }
-      }
-    }
-    return {lo: 0, hi: data.length - 1};
-  }
-  function optimizedEvaluateItems(chart, axis, position, handler, intersect) {
-    const metasets = chart.getSortedVisibleDatasetMetas();
-    const value = position[axis];
-    for (let i = 0, ilen = metasets.length; i < ilen; ++i) {
-      const {index, data} = metasets[i];
-      const {lo, hi} = binarySearch(metasets[i], axis, value, intersect);
-      for (let j = lo; j <= hi; ++j) {
-        const element = data[j];
-        if (!element.skip) {
-          handler(element, index, j);
-        }
-      }
-    }
-  }
-  function getDistanceMetricForAxis(axis) {
-    const useX = axis.indexOf('x') !== -1;
-    const useY = axis.indexOf('y') !== -1;
-    return function(pt1, pt2) {
-      const deltaX = useX ? Math.abs(pt1.x - pt2.x) : 0;
-      const deltaY = useY ? Math.abs(pt1.y - pt2.y) : 0;
-      return Math.sqrt(Math.pow(deltaX, 2) + Math.pow(deltaY, 2));
-    };
-  }
-  function getIntersectItems(chart, position, axis, useFinalPosition) {
-    const items = [];
-    if (!_isPointInArea(position, chart.chartArea, chart._minPadding)) {
-      return items;
-    }
-    const evaluationFunc = function(element, datasetIndex, index) {
-      if (element.inRange(position.x, position.y, useFinalPosition)) {
-        items.push({element, datasetIndex, index});
-      }
-    };
-    optimizedEvaluateItems(chart, axis, position, evaluationFunc, true);
-    return items;
-  }
-  function getNearestRadialItems(chart, position, axis, useFinalPosition) {
-    let items = [];
-    function evaluationFunc(element, datasetIndex, index) {
-      const {startAngle, endAngle} = element.getProps(['startAngle', 'endAngle'], useFinalPosition);
-      const {angle} = getAngleFromPoint(element, {x: position.x, y: position.y});
-      if (_angleBetween(angle, startAngle, endAngle)) {
-        items.push({element, datasetIndex, index});
-      }
-    }
-    optimizedEvaluateItems(chart, axis, position, evaluationFunc);
-    return items;
-  }
-  function getNearestCartesianItems(chart, position, axis, intersect, useFinalPosition) {
-    let items = [];
-    const distanceMetric = getDistanceMetricForAxis(axis);
-    let minDistance = Number.POSITIVE_INFINITY;
-    function evaluationFunc(element, datasetIndex, index) {
-      const inRange = element.inRange(position.x, position.y, useFinalPosition);
-      if (intersect && !inRange) {
-        return;
-      }
-      const center = element.getCenterPoint(useFinalPosition);
-      const pointInArea = _isPointInArea(center, chart.chartArea, chart._minPadding);
-      if (!pointInArea && !inRange) {
-        return;
-      }
-      const distance = distanceMetric(position, center);
-      if (distance < minDistance) {
-        items = [{element, datasetIndex, index}];
-        minDistance = distance;
-      } else if (distance === minDistance) {
-        items.push({element, datasetIndex, index});
-      }
-    }
-    optimizedEvaluateItems(chart, axis, position, evaluationFunc);
-    return items;
-  }
-  function getNearestItems(chart, position, axis, intersect, useFinalPosition) {
-    if (!_isPointInArea(position, chart.chartArea, chart._minPadding)) {
-      return [];
-    }
-    return axis === 'r' && !intersect
-      ? getNearestRadialItems(chart, position, axis, useFinalPosition)
-      : getNearestCartesianItems(chart, position, axis, intersect, useFinalPosition);
-  }
-  function getAxisItems(chart, e, options, useFinalPosition) {
-    const position = getRelativePosition$1(e, chart);
-    const items = [];
-    const axis = options.axis;
-    const rangeMethod = axis === 'x' ? 'inXRange' : 'inYRange';
-    let intersectsItem = false;
-    evaluateAllVisibleItems(chart, (element, datasetIndex, index) => {
-      if (element[rangeMethod](position[axis], useFinalPosition)) {
-        items.push({element, datasetIndex, index});
-      }
-      if (element.inRange(position.x, position.y, useFinalPosition)) {
-        intersectsItem = true;
-      }
-    });
-    if (options.intersect && !intersectsItem) {
-      return [];
-    }
-    return items;
-  }
-  var Interaction = {
-    modes: {
-      index(chart, e, options, useFinalPosition) {
-        const position = getRelativePosition$1(e, chart);
-        const axis = options.axis || 'x';
-        const items = options.intersect
-          ? getIntersectItems(chart, position, axis, useFinalPosition)
-          : getNearestItems(chart, position, axis, false, useFinalPosition);
-        const elements = [];
-        if (!items.length) {
-          return [];
-        }
-        chart.getSortedVisibleDatasetMetas().forEach((meta) => {
-          const index = items[0].index;
-          const element = meta.data[index];
-          if (element && !element.skip) {
-            elements.push({element, datasetIndex: meta.index, index});
-          }
-        });
-        return elements;
-      },
-      dataset(chart, e, options, useFinalPosition) {
-        const position = getRelativePosition$1(e, chart);
-        const axis = options.axis || 'xy';
-        let items = options.intersect
-          ? getIntersectItems(chart, position, axis, useFinalPosition) :
-          getNearestItems(chart, position, axis, false, useFinalPosition);
-        if (items.length > 0) {
-          const datasetIndex = items[0].datasetIndex;
-          const data = chart.getDatasetMeta(datasetIndex).data;
-          items = [];
-          for (let i = 0; i < data.length; ++i) {
-            items.push({element: data[i], datasetIndex, index: i});
-          }
-        }
-        return items;
-      },
-      point(chart, e, options, useFinalPosition) {
-        const position = getRelativePosition$1(e, chart);
-        const axis = options.axis || 'xy';
-        return getIntersectItems(chart, position, axis, useFinalPosition);
-      },
-      nearest(chart, e, options, useFinalPosition) {
-        const position = getRelativePosition$1(e, chart);
-        const axis = options.axis || 'xy';
-        return getNearestItems(chart, position, axis, options.intersect, useFinalPosition);
-      },
-      x(chart, e, options, useFinalPosition) {
-        return getAxisItems(chart, e, {axis: 'x', intersect: options.intersect}, useFinalPosition);
-      },
-      y(chart, e, options, useFinalPosition) {
-        return getAxisItems(chart, e, {axis: 'y', intersect: options.intersect}, useFinalPosition);
-      }
-    }
-  };
-
-  const STATIC_POSITIONS = ['left', 'top', 'right', 'bottom'];
-  function filterByPosition(array, position) {
-    return array.filter(v => v.pos === position);
-  }
-  function filterDynamicPositionByAxis(array, axis) {
-    return array.filter(v => STATIC_POSITIONS.indexOf(v.pos) === -1 && v.box.axis === axis);
-  }
-  function sortByWeight(array, reverse) {
-    return array.sort((a, b) => {
-      const v0 = reverse ? b : a;
-      const v1 = reverse ? a : b;
-      return v0.weight === v1.weight ?
-        v0.index - v1.index :
-        v0.weight - v1.weight;
-    });
-  }
-  function wrapBoxes(boxes) {
-    const layoutBoxes = [];
-    let i, ilen, box, pos, stack, stackWeight;
-    for (i = 0, ilen = (boxes || []).length; i < ilen; ++i) {
-      box = boxes[i];
-      ({position: pos, options: {stack, stackWeight = 1}} = box);
-      layoutBoxes.push({
-        index: i,
-        box,
-        pos,
-        horizontal: box.isHorizontal(),
-        weight: box.weight,
-        stack: stack && (pos + stack),
-        stackWeight
-      });
-    }
-    return layoutBoxes;
-  }
-  function buildStacks(layouts) {
-    const stacks = {};
-    for (const wrap of layouts) {
-      const {stack, pos, stackWeight} = wrap;
-      if (!stack || !STATIC_POSITIONS.includes(pos)) {
-        continue;
-      }
-      const _stack = stacks[stack] || (stacks[stack] = {count: 0, placed: 0, weight: 0, size: 0});
-      _stack.count++;
-      _stack.weight += stackWeight;
-    }
-    return stacks;
-  }
-  function setLayoutDims(layouts, params) {
-    const stacks = buildStacks(layouts);
-    const {vBoxMaxWidth, hBoxMaxHeight} = params;
-    let i, ilen, layout;
-    for (i = 0, ilen = layouts.length; i < ilen; ++i) {
-      layout = layouts[i];
-      const {fullSize} = layout.box;
-      const stack = stacks[layout.stack];
-      const factor = stack && layout.stackWeight / stack.weight;
-      if (layout.horizontal) {
-        layout.width = factor ? factor * vBoxMaxWidth : fullSize && params.availableWidth;
-        layout.height = hBoxMaxHeight;
-      } else {
-        layout.width = vBoxMaxWidth;
-        layout.height = factor ? factor * hBoxMaxHeight : fullSize && params.availableHeight;
-      }
-    }
-    return stacks;
-  }
-  function buildLayoutBoxes(boxes) {
-    const layoutBoxes = wrapBoxes(boxes);
-    const fullSize = sortByWeight(layoutBoxes.filter(wrap => wrap.box.fullSize), true);
-    const left = sortByWeight(filterByPosition(layoutBoxes, 'left'), true);
-    const right = sortByWeight(filterByPosition(layoutBoxes, 'right'));
-    const top = sortByWeight(filterByPosition(layoutBoxes, 'top'), true);
-    const bottom = sortByWeight(filterByPosition(layoutBoxes, 'bottom'));
-    const centerHorizontal = filterDynamicPositionByAxis(layoutBoxes, 'x');
-    const centerVertical = filterDynamicPositionByAxis(layoutBoxes, 'y');
-    return {
-      fullSize,
-      leftAndTop: left.concat(top),
-      rightAndBottom: right.concat(centerVertical).concat(bottom).concat(centerHorizontal),
-      chartArea: filterByPosition(layoutBoxes, 'chartArea'),
-      vertical: left.concat(right).concat(centerVertical),
-      horizontal: top.concat(bottom).concat(centerHorizontal)
-    };
-  }
-  function getCombinedMax(maxPadding, chartArea, a, b) {
-    return Math.max(maxPadding[a], chartArea[a]) + Math.max(maxPadding[b], chartArea[b]);
-  }
-  function updateMaxPadding(maxPadding, boxPadding) {
-    maxPadding.top = Math.max(maxPadding.top, boxPadding.top);
-    maxPadding.left = Math.max(maxPadding.left, boxPadding.left);
-    maxPadding.bottom = Math.max(maxPadding.bottom, boxPadding.bottom);
-    maxPadding.right = Math.max(maxPadding.right, boxPadding.right);
-  }
-  function updateDims(chartArea, params, layout, stacks) {
-    const {pos, box} = layout;
-    const maxPadding = chartArea.maxPadding;
-    if (!isObject(pos)) {
-      if (layout.size) {
-        chartArea[pos] -= layout.size;
-      }
-      const stack = stacks[layout.stack] || {size: 0, count: 1};
-      stack.size = Math.max(stack.size, layout.horizontal ? box.height : box.width);
-      layout.size = stack.size / stack.count;
-      chartArea[pos] += layout.size;
-    }
-    if (box.getPadding) {
-      updateMaxPadding(maxPadding, box.getPadding());
-    }
-    const newWidth = Math.max(0, params.outerWidth - getCombinedMax(maxPadding, chartArea, 'left', 'right'));
-    const newHeight = Math.max(0, params.outerHeight - getCombinedMax(maxPadding, chartArea, 'top', 'bottom'));
-    const widthChanged = newWidth !== chartArea.w;
-    const heightChanged = newHeight !== chartArea.h;
-    chartArea.w = newWidth;
-    chartArea.h = newHeight;
-    return layout.horizontal
-      ? {same: widthChanged, other: heightChanged}
-      : {same: heightChanged, other: widthChanged};
-  }
-  function handleMaxPadding(chartArea) {
-    const maxPadding = chartArea.maxPadding;
-    function updatePos(pos) {
-      const change = Math.max(maxPadding[pos] - chartArea[pos], 0);
-      chartArea[pos] += change;
-      return change;
-    }
-    chartArea.y += updatePos('top');
-    chartArea.x += updatePos('left');
-    updatePos('right');
-    updatePos('bottom');
-  }
-  function getMargins(horizontal, chartArea) {
-    const maxPadding = chartArea.maxPadding;
-    function marginForPositions(positions) {
-      const margin = {left: 0, top: 0, right: 0, bottom: 0};
-      positions.forEach((pos) => {
-        margin[pos] = Math.max(chartArea[pos], maxPadding[pos]);
-      });
-      return margin;
-    }
-    return horizontal
-      ? marginForPositions(['left', 'right'])
-      : marginForPositions(['top', 'bottom']);
-  }
-  function fitBoxes(boxes, chartArea, params, stacks) {
-    const refitBoxes = [];
-    let i, ilen, layout, box, refit, changed;
-    for (i = 0, ilen = boxes.length, refit = 0; i < ilen; ++i) {
-      layout = boxes[i];
-      box = layout.box;
-      box.update(
-        layout.width || chartArea.w,
-        layout.height || chartArea.h,
-        getMargins(layout.horizontal, chartArea)
-      );
-      const {same, other} = updateDims(chartArea, params, layout, stacks);
-      refit |= same && refitBoxes.length;
-      changed = changed || other;
-      if (!box.fullSize) {
-        refitBoxes.push(layout);
-      }
-    }
-    return refit && fitBoxes(refitBoxes, chartArea, params, stacks) || changed;
-  }
-  function setBoxDims(box, left, top, width, height) {
-    box.top = top;
-    box.left = left;
-    box.right = left + width;
-    box.bottom = top + height;
-    box.width = width;
-    box.height = height;
-  }
-  function placeBoxes(boxes, chartArea, params, stacks) {
-    const userPadding = params.padding;
-    let {x, y} = chartArea;
-    for (const layout of boxes) {
-      const box = layout.box;
-      const stack = stacks[layout.stack] || {count: 1, placed: 0, weight: 1};
-      const weight = (layout.stackWeight / stack.weight) || 1;
-      if (layout.horizontal) {
-        const width = chartArea.w * weight;
-        const height = stack.size || box.height;
-        if (defined(stack.start)) {
-          y = stack.start;
-        }
-        if (box.fullSize) {
-          setBoxDims(box, userPadding.left, y, params.outerWidth - userPadding.right - userPadding.left, height);
-        } else {
-          setBoxDims(box, chartArea.left + stack.placed, y, width, height);
-        }
-        stack.start = y;
-        stack.placed += width;
-        y = box.bottom;
-      } else {
-        const height = chartArea.h * weight;
-        const width = stack.size || box.width;
-        if (defined(stack.start)) {
-          x = stack.start;
-        }
-        if (box.fullSize) {
-          setBoxDims(box, x, userPadding.top, width, params.outerHeight - userPadding.bottom - userPadding.top);
-        } else {
-          setBoxDims(box, x, chartArea.top + stack.placed, width, height);
-        }
-        stack.start = x;
-        stack.placed += height;
-        x = box.right;
-      }
-    }
-    chartArea.x = x;
-    chartArea.y = y;
-  }
-  defaults.set('layout', {
-    autoPadding: true,
-    padding: {
-      top: 0,
-      right: 0,
-      bottom: 0,
-      left: 0
-    }
-  });
-  var layouts = {
-    addBox(chart, item) {
-      if (!chart.boxes) {
-        chart.boxes = [];
-      }
-      item.fullSize = item.fullSize || false;
-      item.position = item.position || 'top';
-      item.weight = item.weight || 0;
-      item._layers = item._layers || function() {
-        return [{
-          z: 0,
-          draw(chartArea) {
-            item.draw(chartArea);
-          }
-        }];
-      };
-      chart.boxes.push(item);
-    },
-    removeBox(chart, layoutItem) {
-      const index = chart.boxes ? chart.boxes.indexOf(layoutItem) : -1;
-      if (index !== -1) {
-        chart.boxes.splice(index, 1);
-      }
-    },
-    configure(chart, item, options) {
-      item.fullSize = options.fullSize;
-      item.position = options.position;
-      item.weight = options.weight;
-    },
-    update(chart, width, height, minPadding) {
-      if (!chart) {
-        return;
-      }
-      const padding = toPadding(chart.options.layout.padding);
-      const availableWidth = Math.max(width - padding.width, 0);
-      const availableHeight = Math.max(height - padding.height, 0);
-      const boxes = buildLayoutBoxes(chart.boxes);
-      const verticalBoxes = boxes.vertical;
-      const horizontalBoxes = boxes.horizontal;
-      each(chart.boxes, box => {
-        if (typeof box.beforeLayout === 'function') {
-          box.beforeLayout();
-        }
-      });
-      const visibleVerticalBoxCount = verticalBoxes.reduce((total, wrap) =>
-        wrap.box.options && wrap.box.options.display === false ? total : total + 1, 0) || 1;
-      const params = Object.freeze({
-        outerWidth: width,
-        outerHeight: height,
-        padding,
-        availableWidth,
-        availableHeight,
-        vBoxMaxWidth: availableWidth / 2 / visibleVerticalBoxCount,
-        hBoxMaxHeight: availableHeight / 2
-      });
-      const maxPadding = Object.assign({}, padding);
-      updateMaxPadding(maxPadding, toPadding(minPadding));
-      const chartArea = Object.assign({
-        maxPadding,
-        w: availableWidth,
-        h: availableHeight,
-        x: padding.left,
-        y: padding.top
-      }, padding);
-      const stacks = setLayoutDims(verticalBoxes.concat(horizontalBoxes), params);
-      fitBoxes(boxes.fullSize, chartArea, params, stacks);
-      fitBoxes(verticalBoxes, chartArea, params, stacks);
-      if (fitBoxes(horizontalBoxes, chartArea, params, stacks)) {
-        fitBoxes(verticalBoxes, chartArea, params, stacks);
-      }
-      handleMaxPadding(chartArea);
-      placeBoxes(boxes.leftAndTop, chartArea, params, stacks);
-      chartArea.x += chartArea.w;
-      chartArea.y += chartArea.h;
-      placeBoxes(boxes.rightAndBottom, chartArea, params, stacks);
-      chart.chartArea = {
-        left: chartArea.left,
-        top: chartArea.top,
-        right: chartArea.left + chartArea.w,
-        bottom: chartArea.top + chartArea.h,
-        height: chartArea.h,
-        width: chartArea.w,
-      };
-      each(boxes.chartArea, (layout) => {
-        const box = layout.box;
-        Object.assign(box, chart.chartArea);
-        box.update(chartArea.w, chartArea.h, {left: 0, top: 0, right: 0, bottom: 0});
-      });
-    }
-  };
-
-  class BasePlatform {
-    acquireContext(canvas, aspectRatio) {}
-    releaseContext(context) {
-      return false;
-    }
-    addEventListener(chart, type, listener) {}
-    removeEventListener(chart, type, listener) {}
-    getDevicePixelRatio() {
-      return 1;
-    }
-    getMaximumSize(element, width, height, aspectRatio) {
-      width = Math.max(0, width || element.width);
-      height = height || element.height;
-      return {
-        width,
-        height: Math.max(0, aspectRatio ? Math.floor(width / aspectRatio) : height)
-      };
-    }
-    isAttached(canvas) {
-      return true;
-    }
-    updateConfig(config) {
-    }
-  }
-
-  class BasicPlatform extends BasePlatform {
-    acquireContext(item) {
-      return item && item.getContext && item.getContext('2d') || null;
-    }
-    updateConfig(config) {
-      config.options.animation = false;
-    }
-  }
-
-  const EXPANDO_KEY = '$chartjs';
-  const EVENT_TYPES = {
-    touchstart: 'mousedown',
-    touchmove: 'mousemove',
-    touchend: 'mouseup',
-    pointerenter: 'mouseenter',
-    pointerdown: 'mousedown',
-    pointermove: 'mousemove',
-    pointerup: 'mouseup',
-    pointerleave: 'mouseout',
-    pointerout: 'mouseout'
-  };
-  const isNullOrEmpty = value => value === null || value === '';
-  function initCanvas(canvas, aspectRatio) {
-    const style = canvas.style;
-    const renderHeight = canvas.getAttribute('height');
-    const renderWidth = canvas.getAttribute('width');
-    canvas[EXPANDO_KEY] = {
-      initial: {
-        height: renderHeight,
-        width: renderWidth,
-        style: {
-          display: style.display,
-          height: style.height,
-          width: style.width
-        }
-      }
-    };
-    style.display = style.display || 'block';
-    style.boxSizing = style.boxSizing || 'border-box';
-    if (isNullOrEmpty(renderWidth)) {
-      const displayWidth = readUsedSize(canvas, 'width');
-      if (displayWidth !== undefined) {
-        canvas.width = displayWidth;
-      }
-    }
-    if (isNullOrEmpty(renderHeight)) {
-      if (canvas.style.height === '') {
-        canvas.height = canvas.width / (aspectRatio || 2);
-      } else {
-        const displayHeight = readUsedSize(canvas, 'height');
-        if (displayHeight !== undefined) {
-          canvas.height = displayHeight;
-        }
-      }
-    }
-    return canvas;
-  }
-  const eventListenerOptions = supportsEventListenerOptions ? {passive: true} : false;
-  function addListener(node, type, listener) {
-    node.addEventListener(type, listener, eventListenerOptions);
-  }
-  function removeListener(chart, type, listener) {
-    chart.canvas.removeEventListener(type, listener, eventListenerOptions);
-  }
-  function fromNativeEvent(event, chart) {
-    const type = EVENT_TYPES[event.type] || event.type;
-    const {x, y} = getRelativePosition$2(event, chart);
-    return {
-      type,
-      chart,
-      native: event,
-      x: x !== undefined ? x : null,
-      y: y !== undefined ? y : null,
-    };
-  }
-  function nodeListContains(nodeList, canvas) {
-    for (const node of nodeList) {
-      if (node === canvas || node.contains(canvas)) {
-        return true;
-      }
-    }
-  }
-  function createAttachObserver(chart, type, listener) {
-    const canvas = chart.canvas;
-    const observer = new MutationObserver(entries => {
-      let trigger = false;
-      for (const entry of entries) {
-        trigger = trigger || nodeListContains(entry.addedNodes, canvas);
-        trigger = trigger && !nodeListContains(entry.removedNodes, canvas);
-      }
-      if (trigger) {
-        listener();
-      }
-    });
-    observer.observe(document, {childList: true, subtree: true});
-    return observer;
-  }
-  function createDetachObserver(chart, type, listener) {
-    const canvas = chart.canvas;
-    const observer = new MutationObserver(entries => {
-      let trigger = false;
-      for (const entry of entries) {
-        trigger = trigger || nodeListContains(entry.removedNodes, canvas);
-        trigger = trigger && !nodeListContains(entry.addedNodes, canvas);
-      }
-      if (trigger) {
-        listener();
-      }
-    });
-    observer.observe(document, {childList: true, subtree: true});
-    return observer;
-  }
-  const drpListeningCharts = new Map();
-  let oldDevicePixelRatio = 0;
-  function onWindowResize() {
-    const dpr = window.devicePixelRatio;
-    if (dpr === oldDevicePixelRatio) {
-      return;
-    }
-    oldDevicePixelRatio = dpr;
-    drpListeningCharts.forEach((resize, chart) => {
-      if (chart.currentDevicePixelRatio !== dpr) {
-        resize();
-      }
-    });
-  }
-  function listenDevicePixelRatioChanges(chart, resize) {
-    if (!drpListeningCharts.size) {
-      window.addEventListener('resize', onWindowResize);
-    }
-    drpListeningCharts.set(chart, resize);
-  }
-  function unlistenDevicePixelRatioChanges(chart) {
-    drpListeningCharts.delete(chart);
-    if (!drpListeningCharts.size) {
-      window.removeEventListener('resize', onWindowResize);
-    }
-  }
-  function createResizeObserver(chart, type, listener) {
-    const canvas = chart.canvas;
-    const container = canvas && _getParentNode(canvas);
-    if (!container) {
-      return;
-    }
-    const resize = throttled((width, height) => {
-      const w = container.clientWidth;
-      listener(width, height);
-      if (w < container.clientWidth) {
-        listener();
-      }
-    }, window);
-    const observer = new ResizeObserver(entries => {
-      const entry = entries[0];
-      const width = entry.contentRect.width;
-      const height = entry.contentRect.height;
-      if (width === 0 && height === 0) {
-        return;
-      }
-      resize(width, height);
-    });
-    observer.observe(container);
-    listenDevicePixelRatioChanges(chart, resize);
-    return observer;
-  }
-  function releaseObserver(chart, type, observer) {
-    if (observer) {
-      observer.disconnect();
-    }
-    if (type === 'resize') {
-      unlistenDevicePixelRatioChanges(chart);
-    }
-  }
-  function createProxyAndListen(chart, type, listener) {
-    const canvas = chart.canvas;
-    const proxy = throttled((event) => {
-      if (chart.ctx !== null) {
-        listener(fromNativeEvent(event, chart));
-      }
-    }, chart, (args) => {
-      const event = args[0];
-      return [event, event.offsetX, event.offsetY];
-    });
-    addListener(canvas, type, proxy);
-    return proxy;
-  }
-  class DomPlatform extends BasePlatform {
-    acquireContext(canvas, aspectRatio) {
-      const context = canvas && canvas.getContext && canvas.getContext('2d');
-      if (context && context.canvas === canvas) {
-        initCanvas(canvas, aspectRatio);
-        return context;
-      }
-      return null;
-    }
-    releaseContext(context) {
-      const canvas = context.canvas;
-      if (!canvas[EXPANDO_KEY]) {
-        return false;
-      }
-      const initial = canvas[EXPANDO_KEY].initial;
-      ['height', 'width'].forEach((prop) => {
-        const value = initial[prop];
-        if (isNullOrUndef(value)) {
-          canvas.removeAttribute(prop);
-        } else {
-          canvas.setAttribute(prop, value);
-        }
-      });
-      const style = initial.style || {};
-      Object.keys(style).forEach((key) => {
-        canvas.style[key] = style[key];
-      });
-      canvas.width = canvas.width;
-      delete canvas[EXPANDO_KEY];
-      return true;
-    }
-    addEventListener(chart, type, listener) {
-      this.removeEventListener(chart, type);
-      const proxies = chart.$proxies || (chart.$proxies = {});
-      const handlers = {
-        attach: createAttachObserver,
-        detach: createDetachObserver,
-        resize: createResizeObserver
-      };
-      const handler = handlers[type] || createProxyAndListen;
-      proxies[type] = handler(chart, type, listener);
-    }
-    removeEventListener(chart, type) {
-      const proxies = chart.$proxies || (chart.$proxies = {});
-      const proxy = proxies[type];
-      if (!proxy) {
-        return;
-      }
-      const handlers = {
-        attach: releaseObserver,
-        detach: releaseObserver,
-        resize: releaseObserver
-      };
-      const handler = handlers[type] || removeListener;
-      handler(chart, type, proxy);
-      proxies[type] = undefined;
-    }
-    getDevicePixelRatio() {
-      return window.devicePixelRatio;
-    }
-    getMaximumSize(canvas, width, height, aspectRatio) {
-      return getMaximumSize(canvas, width, height, aspectRatio);
-    }
-    isAttached(canvas) {
-      const container = _getParentNode(canvas);
-      return !!(container && container.isConnected);
-    }
-  }
-
-  function _detectPlatform(canvas) {
-    if (!_isDomSupported() || (typeof OffscreenCanvas !== 'undefined' && canvas instanceof OffscreenCanvas)) {
-      return BasicPlatform;
-    }
-    return DomPlatform;
-  }
-
   class Element {
     constructor() {
       this.x = undefined;
@@ -5867,7 +5087,7 @@
   Element.defaults = {};
   Element.defaultRoutes = undefined;
 
-  const formatters = {
+  const formatters$1 = {
     values(value) {
       return isArray(value) ? value : '' + value;
     },
@@ -5897,7 +5117,7 @@
       }
       const remain = tickValue / (Math.pow(10, Math.floor(log10(tickValue))));
       if (remain === 1 || remain === 2 || remain === 5) {
-        return formatters.numeric.call(this, tickValue, index, ticks);
+        return formatters$1.numeric.call(this, tickValue, index, ticks);
       }
       return '';
     }
@@ -5909,7 +5129,7 @@
     }
     return delta;
   }
-  var Ticks = {formatters};
+  var Ticks = {formatters: formatters$1};
 
   defaults.set('scale', {
     display: true,
@@ -6361,6 +5581,7 @@
       if (tickOpts.display && (tickOpts.autoSkip || tickOpts.source === 'auto')) {
         this.ticks = autoSkip(this, this.ticks);
         this._labelSizes = null;
+        this.afterAutoSkip();
       }
       if (samplingEnabled) {
         this._convertTicksToLabels(this.ticks);
@@ -6481,6 +5702,7 @@
     afterCalculateLabelRotation() {
       callback(this.options.afterCalculateLabelRotation, [this]);
     }
+    afterAutoSkip() {}
     beforeFit() {
       callback(this.options.beforeFit, [this]);
     }
@@ -6547,7 +5769,7 @@
           paddingRight = last.width;
         } else if (align === 'end') {
           paddingLeft = first.width;
-        } else {
+        } else if (align !== 'inner') {
           paddingLeft = first.width / 2;
           paddingRight = last.width / 2;
         }
@@ -6792,7 +6014,7 @@
         const optsAtIndex = grid.setContext(this.getContext(i));
         const lineWidth = optsAtIndex.lineWidth;
         const lineColor = optsAtIndex.color;
-        const borderDash = grid.borderDash || [];
+        const borderDash = optsAtIndex.borderDash || [];
         const borderDashOffset = optsAtIndex.borderDashOffset;
         const tickWidth = optsAtIndex.tickWidth;
         const tickColor = optsAtIndex.tickColor;
@@ -6898,8 +6120,18 @@
         const color = optsAtIndex.color;
         const strokeColor = optsAtIndex.textStrokeColor;
         const strokeWidth = optsAtIndex.textStrokeWidth;
+        let tickTextAlign = textAlign;
         if (isHorizontal) {
           x = pixel;
+          if (textAlign === 'inner') {
+            if (i === ilen - 1) {
+              tickTextAlign = !this.options.reverse ? 'right' : 'left';
+            } else if (i === 0) {
+              tickTextAlign = !this.options.reverse ? 'left' : 'right';
+            } else {
+              tickTextAlign = 'center';
+            }
+          }
           if (position === 'top') {
             if (crossAlign === 'near' || rotation !== 0) {
               textOffset = -lineCount * lineHeight + lineHeight / 2;
@@ -6963,7 +6195,7 @@
           strokeColor,
           strokeWidth,
           textOffset,
-          textAlign,
+          textAlign: tickTextAlign,
           textBaseline,
           translation: [x, y],
           backdrop,
@@ -6982,6 +6214,8 @@
         align = 'left';
       } else if (ticks.align === 'end') {
         align = 'right';
+      } else if (ticks.align === 'inner') {
+        align = 'inner';
       }
       return align;
     }
@@ -7437,6 +6671,955 @@
   }
   var registry = new Registry();
 
+  class ScatterController extends DatasetController {
+    update(mode) {
+      const meta = this._cachedMeta;
+      const {data: points = []} = meta;
+      const animationsDisabled = this.chart._animationsDisabled;
+      let {start, count} = _getStartAndCountOfVisiblePoints(meta, points, animationsDisabled);
+      this._drawStart = start;
+      this._drawCount = count;
+      if (_scaleRangesChanged(meta)) {
+        start = 0;
+        count = points.length;
+      }
+      if (this.options.showLine) {
+        const {dataset: line, _dataset} = meta;
+        line._chart = this.chart;
+        line._datasetIndex = this.index;
+        line._decimated = !!_dataset._decimated;
+        line.points = points;
+        const options = this.resolveDatasetElementOptions(mode);
+        options.segment = this.options.segment;
+        this.updateElement(line, undefined, {
+          animated: !animationsDisabled,
+          options
+        }, mode);
+      }
+      this.updateElements(points, start, count, mode);
+    }
+    addElements() {
+      const {showLine} = this.options;
+      if (!this.datasetElementType && showLine) {
+        this.datasetElementType = registry.getElement('line');
+      }
+      super.addElements();
+    }
+    updateElements(points, start, count, mode) {
+      const reset = mode === 'reset';
+      const {iScale, vScale, _stacked, _dataset} = this._cachedMeta;
+      const firstOpts = this.resolveDataElementOptions(start, mode);
+      const sharedOptions = this.getSharedOptions(firstOpts);
+      const includeOptions = this.includeOptions(mode, sharedOptions);
+      const iAxis = iScale.axis;
+      const vAxis = vScale.axis;
+      const {spanGaps, segment} = this.options;
+      const maxGapLength = isNumber(spanGaps) ? spanGaps : Number.POSITIVE_INFINITY;
+      const directUpdate = this.chart._animationsDisabled || reset || mode === 'none';
+      let prevParsed = start > 0 && this.getParsed(start - 1);
+      for (let i = start; i < start + count; ++i) {
+        const point = points[i];
+        const parsed = this.getParsed(i);
+        const properties = directUpdate ? point : {};
+        const nullData = isNullOrUndef(parsed[vAxis]);
+        const iPixel = properties[iAxis] = iScale.getPixelForValue(parsed[iAxis], i);
+        const vPixel = properties[vAxis] = reset || nullData ? vScale.getBasePixel() : vScale.getPixelForValue(_stacked ? this.applyStack(vScale, parsed, _stacked) : parsed[vAxis], i);
+        properties.skip = isNaN(iPixel) || isNaN(vPixel) || nullData;
+        properties.stop = i > 0 && (Math.abs(parsed[iAxis] - prevParsed[iAxis])) > maxGapLength;
+        if (segment) {
+          properties.parsed = parsed;
+          properties.raw = _dataset.data[i];
+        }
+        if (includeOptions) {
+          properties.options = sharedOptions || this.resolveDataElementOptions(i, point.active ? 'active' : mode);
+        }
+        if (!directUpdate) {
+          this.updateElement(point, i, properties, mode);
+        }
+        prevParsed = parsed;
+      }
+      this.updateSharedOptions(sharedOptions, mode, firstOpts);
+    }
+    getMaxOverflow() {
+      const meta = this._cachedMeta;
+      const data = meta.data || [];
+      if (!this.options.showLine) {
+        let max = 0;
+        for (let i = data.length - 1; i >= 0; --i) {
+          max = Math.max(max, data[i].size(this.resolveDataElementOptions(i)) / 2);
+        }
+        return max > 0 && max;
+      }
+      const dataset = meta.dataset;
+      const border = dataset.options && dataset.options.borderWidth || 0;
+      if (!data.length) {
+        return border;
+      }
+      const firstPoint = data[0].size(this.resolveDataElementOptions(0));
+      const lastPoint = data[data.length - 1].size(this.resolveDataElementOptions(data.length - 1));
+      return Math.max(border, firstPoint, lastPoint) / 2;
+    }
+  }
+  ScatterController.id = 'scatter';
+  ScatterController.defaults = {
+    datasetElementType: false,
+    dataElementType: 'point',
+    showLine: false,
+    fill: false
+  };
+  ScatterController.overrides = {
+    interaction: {
+      mode: 'point'
+    },
+    plugins: {
+      tooltip: {
+        callbacks: {
+          title() {
+            return '';
+          },
+          label(item) {
+            return '(' + item.label + ', ' + item.formattedValue + ')';
+          }
+        }
+      }
+    },
+    scales: {
+      x: {
+        type: 'linear'
+      },
+      y: {
+        type: 'linear'
+      }
+    }
+  };
+
+  var controllers = /*#__PURE__*/Object.freeze({
+  __proto__: null,
+  BarController: BarController,
+  BubbleController: BubbleController,
+  DoughnutController: DoughnutController,
+  LineController: LineController,
+  PolarAreaController: PolarAreaController,
+  PieController: PieController,
+  RadarController: RadarController,
+  ScatterController: ScatterController
+  });
+
+  function abstract() {
+    throw new Error('This method is not implemented: Check that a complete date adapter is provided.');
+  }
+  class DateAdapter {
+    constructor(options) {
+      this.options = options || {};
+    }
+    init(chartOptions) {}
+    formats() {
+      return abstract();
+    }
+    parse(value, format) {
+      return abstract();
+    }
+    format(timestamp, format) {
+      return abstract();
+    }
+    add(timestamp, amount, unit) {
+      return abstract();
+    }
+    diff(a, b, unit) {
+      return abstract();
+    }
+    startOf(timestamp, unit, weekday) {
+      return abstract();
+    }
+    endOf(timestamp, unit) {
+      return abstract();
+    }
+  }
+  DateAdapter.override = function(members) {
+    Object.assign(DateAdapter.prototype, members);
+  };
+  var adapters = {
+    _date: DateAdapter
+  };
+
+  function binarySearch(metaset, axis, value, intersect) {
+    const {controller, data, _sorted} = metaset;
+    const iScale = controller._cachedMeta.iScale;
+    if (iScale && axis === iScale.axis && axis !== 'r' && _sorted && data.length) {
+      const lookupMethod = iScale._reversePixels ? _rlookupByKey : _lookupByKey;
+      if (!intersect) {
+        return lookupMethod(data, axis, value);
+      } else if (controller._sharedOptions) {
+        const el = data[0];
+        const range = typeof el.getRange === 'function' && el.getRange(axis);
+        if (range) {
+          const start = lookupMethod(data, axis, value - range);
+          const end = lookupMethod(data, axis, value + range);
+          return {lo: start.lo, hi: end.hi};
+        }
+      }
+    }
+    return {lo: 0, hi: data.length - 1};
+  }
+  function evaluateInteractionItems(chart, axis, position, handler, intersect) {
+    const metasets = chart.getSortedVisibleDatasetMetas();
+    const value = position[axis];
+    for (let i = 0, ilen = metasets.length; i < ilen; ++i) {
+      const {index, data} = metasets[i];
+      const {lo, hi} = binarySearch(metasets[i], axis, value, intersect);
+      for (let j = lo; j <= hi; ++j) {
+        const element = data[j];
+        if (!element.skip) {
+          handler(element, index, j);
+        }
+      }
+    }
+  }
+  function getDistanceMetricForAxis(axis) {
+    const useX = axis.indexOf('x') !== -1;
+    const useY = axis.indexOf('y') !== -1;
+    return function(pt1, pt2) {
+      const deltaX = useX ? Math.abs(pt1.x - pt2.x) : 0;
+      const deltaY = useY ? Math.abs(pt1.y - pt2.y) : 0;
+      return Math.sqrt(Math.pow(deltaX, 2) + Math.pow(deltaY, 2));
+    };
+  }
+  function getIntersectItems(chart, position, axis, useFinalPosition, includeInvisible) {
+    const items = [];
+    if (!includeInvisible && !chart.isPointInArea(position)) {
+      return items;
+    }
+    const evaluationFunc = function(element, datasetIndex, index) {
+      if (!includeInvisible && !_isPointInArea(element, chart.chartArea, 0)) {
+        return;
+      }
+      if (element.inRange(position.x, position.y, useFinalPosition)) {
+        items.push({element, datasetIndex, index});
+      }
+    };
+    evaluateInteractionItems(chart, axis, position, evaluationFunc, true);
+    return items;
+  }
+  function getNearestRadialItems(chart, position, axis, useFinalPosition) {
+    let items = [];
+    function evaluationFunc(element, datasetIndex, index) {
+      const {startAngle, endAngle} = element.getProps(['startAngle', 'endAngle'], useFinalPosition);
+      const {angle} = getAngleFromPoint(element, {x: position.x, y: position.y});
+      if (_angleBetween(angle, startAngle, endAngle)) {
+        items.push({element, datasetIndex, index});
+      }
+    }
+    evaluateInteractionItems(chart, axis, position, evaluationFunc);
+    return items;
+  }
+  function getNearestCartesianItems(chart, position, axis, intersect, useFinalPosition, includeInvisible) {
+    let items = [];
+    const distanceMetric = getDistanceMetricForAxis(axis);
+    let minDistance = Number.POSITIVE_INFINITY;
+    function evaluationFunc(element, datasetIndex, index) {
+      const inRange = element.inRange(position.x, position.y, useFinalPosition);
+      if (intersect && !inRange) {
+        return;
+      }
+      const center = element.getCenterPoint(useFinalPosition);
+      const pointInArea = !!includeInvisible || chart.isPointInArea(center);
+      if (!pointInArea && !inRange) {
+        return;
+      }
+      const distance = distanceMetric(position, center);
+      if (distance < minDistance) {
+        items = [{element, datasetIndex, index}];
+        minDistance = distance;
+      } else if (distance === minDistance) {
+        items.push({element, datasetIndex, index});
+      }
+    }
+    evaluateInteractionItems(chart, axis, position, evaluationFunc);
+    return items;
+  }
+  function getNearestItems(chart, position, axis, intersect, useFinalPosition, includeInvisible) {
+    if (!includeInvisible && !chart.isPointInArea(position)) {
+      return [];
+    }
+    return axis === 'r' && !intersect
+      ? getNearestRadialItems(chart, position, axis, useFinalPosition)
+      : getNearestCartesianItems(chart, position, axis, intersect, useFinalPosition, includeInvisible);
+  }
+  function getAxisItems(chart, position, axis, intersect, useFinalPosition) {
+    const items = [];
+    const rangeMethod = axis === 'x' ? 'inXRange' : 'inYRange';
+    let intersectsItem = false;
+    evaluateInteractionItems(chart, axis, position, (element, datasetIndex, index) => {
+      if (element[rangeMethod](position[axis], useFinalPosition)) {
+        items.push({element, datasetIndex, index});
+        intersectsItem = intersectsItem || element.inRange(position.x, position.y, useFinalPosition);
+      }
+    });
+    if (intersect && !intersectsItem) {
+      return [];
+    }
+    return items;
+  }
+  var Interaction = {
+    evaluateInteractionItems,
+    modes: {
+      index(chart, e, options, useFinalPosition) {
+        const position = getRelativePosition$1(e, chart);
+        const axis = options.axis || 'x';
+        const includeInvisible = options.includeInvisible || false;
+        const items = options.intersect
+          ? getIntersectItems(chart, position, axis, useFinalPosition, includeInvisible)
+          : getNearestItems(chart, position, axis, false, useFinalPosition, includeInvisible);
+        const elements = [];
+        if (!items.length) {
+          return [];
+        }
+        chart.getSortedVisibleDatasetMetas().forEach((meta) => {
+          const index = items[0].index;
+          const element = meta.data[index];
+          if (element && !element.skip) {
+            elements.push({element, datasetIndex: meta.index, index});
+          }
+        });
+        return elements;
+      },
+      dataset(chart, e, options, useFinalPosition) {
+        const position = getRelativePosition$1(e, chart);
+        const axis = options.axis || 'xy';
+        const includeInvisible = options.includeInvisible || false;
+        let items = options.intersect
+          ? getIntersectItems(chart, position, axis, useFinalPosition, includeInvisible) :
+          getNearestItems(chart, position, axis, false, useFinalPosition, includeInvisible);
+        if (items.length > 0) {
+          const datasetIndex = items[0].datasetIndex;
+          const data = chart.getDatasetMeta(datasetIndex).data;
+          items = [];
+          for (let i = 0; i < data.length; ++i) {
+            items.push({element: data[i], datasetIndex, index: i});
+          }
+        }
+        return items;
+      },
+      point(chart, e, options, useFinalPosition) {
+        const position = getRelativePosition$1(e, chart);
+        const axis = options.axis || 'xy';
+        const includeInvisible = options.includeInvisible || false;
+        return getIntersectItems(chart, position, axis, useFinalPosition, includeInvisible);
+      },
+      nearest(chart, e, options, useFinalPosition) {
+        const position = getRelativePosition$1(e, chart);
+        const axis = options.axis || 'xy';
+        const includeInvisible = options.includeInvisible || false;
+        return getNearestItems(chart, position, axis, options.intersect, useFinalPosition, includeInvisible);
+      },
+      x(chart, e, options, useFinalPosition) {
+        const position = getRelativePosition$1(e, chart);
+        return getAxisItems(chart, position, 'x', options.intersect, useFinalPosition);
+      },
+      y(chart, e, options, useFinalPosition) {
+        const position = getRelativePosition$1(e, chart);
+        return getAxisItems(chart, position, 'y', options.intersect, useFinalPosition);
+      }
+    }
+  };
+
+  const STATIC_POSITIONS = ['left', 'top', 'right', 'bottom'];
+  function filterByPosition(array, position) {
+    return array.filter(v => v.pos === position);
+  }
+  function filterDynamicPositionByAxis(array, axis) {
+    return array.filter(v => STATIC_POSITIONS.indexOf(v.pos) === -1 && v.box.axis === axis);
+  }
+  function sortByWeight(array, reverse) {
+    return array.sort((a, b) => {
+      const v0 = reverse ? b : a;
+      const v1 = reverse ? a : b;
+      return v0.weight === v1.weight ?
+        v0.index - v1.index :
+        v0.weight - v1.weight;
+    });
+  }
+  function wrapBoxes(boxes) {
+    const layoutBoxes = [];
+    let i, ilen, box, pos, stack, stackWeight;
+    for (i = 0, ilen = (boxes || []).length; i < ilen; ++i) {
+      box = boxes[i];
+      ({position: pos, options: {stack, stackWeight = 1}} = box);
+      layoutBoxes.push({
+        index: i,
+        box,
+        pos,
+        horizontal: box.isHorizontal(),
+        weight: box.weight,
+        stack: stack && (pos + stack),
+        stackWeight
+      });
+    }
+    return layoutBoxes;
+  }
+  function buildStacks(layouts) {
+    const stacks = {};
+    for (const wrap of layouts) {
+      const {stack, pos, stackWeight} = wrap;
+      if (!stack || !STATIC_POSITIONS.includes(pos)) {
+        continue;
+      }
+      const _stack = stacks[stack] || (stacks[stack] = {count: 0, placed: 0, weight: 0, size: 0});
+      _stack.count++;
+      _stack.weight += stackWeight;
+    }
+    return stacks;
+  }
+  function setLayoutDims(layouts, params) {
+    const stacks = buildStacks(layouts);
+    const {vBoxMaxWidth, hBoxMaxHeight} = params;
+    let i, ilen, layout;
+    for (i = 0, ilen = layouts.length; i < ilen; ++i) {
+      layout = layouts[i];
+      const {fullSize} = layout.box;
+      const stack = stacks[layout.stack];
+      const factor = stack && layout.stackWeight / stack.weight;
+      if (layout.horizontal) {
+        layout.width = factor ? factor * vBoxMaxWidth : fullSize && params.availableWidth;
+        layout.height = hBoxMaxHeight;
+      } else {
+        layout.width = vBoxMaxWidth;
+        layout.height = factor ? factor * hBoxMaxHeight : fullSize && params.availableHeight;
+      }
+    }
+    return stacks;
+  }
+  function buildLayoutBoxes(boxes) {
+    const layoutBoxes = wrapBoxes(boxes);
+    const fullSize = sortByWeight(layoutBoxes.filter(wrap => wrap.box.fullSize), true);
+    const left = sortByWeight(filterByPosition(layoutBoxes, 'left'), true);
+    const right = sortByWeight(filterByPosition(layoutBoxes, 'right'));
+    const top = sortByWeight(filterByPosition(layoutBoxes, 'top'), true);
+    const bottom = sortByWeight(filterByPosition(layoutBoxes, 'bottom'));
+    const centerHorizontal = filterDynamicPositionByAxis(layoutBoxes, 'x');
+    const centerVertical = filterDynamicPositionByAxis(layoutBoxes, 'y');
+    return {
+      fullSize,
+      leftAndTop: left.concat(top),
+      rightAndBottom: right.concat(centerVertical).concat(bottom).concat(centerHorizontal),
+      chartArea: filterByPosition(layoutBoxes, 'chartArea'),
+      vertical: left.concat(right).concat(centerVertical),
+      horizontal: top.concat(bottom).concat(centerHorizontal)
+    };
+  }
+  function getCombinedMax(maxPadding, chartArea, a, b) {
+    return Math.max(maxPadding[a], chartArea[a]) + Math.max(maxPadding[b], chartArea[b]);
+  }
+  function updateMaxPadding(maxPadding, boxPadding) {
+    maxPadding.top = Math.max(maxPadding.top, boxPadding.top);
+    maxPadding.left = Math.max(maxPadding.left, boxPadding.left);
+    maxPadding.bottom = Math.max(maxPadding.bottom, boxPadding.bottom);
+    maxPadding.right = Math.max(maxPadding.right, boxPadding.right);
+  }
+  function updateDims(chartArea, params, layout, stacks) {
+    const {pos, box} = layout;
+    const maxPadding = chartArea.maxPadding;
+    if (!isObject(pos)) {
+      if (layout.size) {
+        chartArea[pos] -= layout.size;
+      }
+      const stack = stacks[layout.stack] || {size: 0, count: 1};
+      stack.size = Math.max(stack.size, layout.horizontal ? box.height : box.width);
+      layout.size = stack.size / stack.count;
+      chartArea[pos] += layout.size;
+    }
+    if (box.getPadding) {
+      updateMaxPadding(maxPadding, box.getPadding());
+    }
+    const newWidth = Math.max(0, params.outerWidth - getCombinedMax(maxPadding, chartArea, 'left', 'right'));
+    const newHeight = Math.max(0, params.outerHeight - getCombinedMax(maxPadding, chartArea, 'top', 'bottom'));
+    const widthChanged = newWidth !== chartArea.w;
+    const heightChanged = newHeight !== chartArea.h;
+    chartArea.w = newWidth;
+    chartArea.h = newHeight;
+    return layout.horizontal
+      ? {same: widthChanged, other: heightChanged}
+      : {same: heightChanged, other: widthChanged};
+  }
+  function handleMaxPadding(chartArea) {
+    const maxPadding = chartArea.maxPadding;
+    function updatePos(pos) {
+      const change = Math.max(maxPadding[pos] - chartArea[pos], 0);
+      chartArea[pos] += change;
+      return change;
+    }
+    chartArea.y += updatePos('top');
+    chartArea.x += updatePos('left');
+    updatePos('right');
+    updatePos('bottom');
+  }
+  function getMargins(horizontal, chartArea) {
+    const maxPadding = chartArea.maxPadding;
+    function marginForPositions(positions) {
+      const margin = {left: 0, top: 0, right: 0, bottom: 0};
+      positions.forEach((pos) => {
+        margin[pos] = Math.max(chartArea[pos], maxPadding[pos]);
+      });
+      return margin;
+    }
+    return horizontal
+      ? marginForPositions(['left', 'right'])
+      : marginForPositions(['top', 'bottom']);
+  }
+  function fitBoxes(boxes, chartArea, params, stacks) {
+    const refitBoxes = [];
+    let i, ilen, layout, box, refit, changed;
+    for (i = 0, ilen = boxes.length, refit = 0; i < ilen; ++i) {
+      layout = boxes[i];
+      box = layout.box;
+      box.update(
+        layout.width || chartArea.w,
+        layout.height || chartArea.h,
+        getMargins(layout.horizontal, chartArea)
+      );
+      const {same, other} = updateDims(chartArea, params, layout, stacks);
+      refit |= same && refitBoxes.length;
+      changed = changed || other;
+      if (!box.fullSize) {
+        refitBoxes.push(layout);
+      }
+    }
+    return refit && fitBoxes(refitBoxes, chartArea, params, stacks) || changed;
+  }
+  function setBoxDims(box, left, top, width, height) {
+    box.top = top;
+    box.left = left;
+    box.right = left + width;
+    box.bottom = top + height;
+    box.width = width;
+    box.height = height;
+  }
+  function placeBoxes(boxes, chartArea, params, stacks) {
+    const userPadding = params.padding;
+    let {x, y} = chartArea;
+    for (const layout of boxes) {
+      const box = layout.box;
+      const stack = stacks[layout.stack] || {count: 1, placed: 0, weight: 1};
+      const weight = (layout.stackWeight / stack.weight) || 1;
+      if (layout.horizontal) {
+        const width = chartArea.w * weight;
+        const height = stack.size || box.height;
+        if (defined(stack.start)) {
+          y = stack.start;
+        }
+        if (box.fullSize) {
+          setBoxDims(box, userPadding.left, y, params.outerWidth - userPadding.right - userPadding.left, height);
+        } else {
+          setBoxDims(box, chartArea.left + stack.placed, y, width, height);
+        }
+        stack.start = y;
+        stack.placed += width;
+        y = box.bottom;
+      } else {
+        const height = chartArea.h * weight;
+        const width = stack.size || box.width;
+        if (defined(stack.start)) {
+          x = stack.start;
+        }
+        if (box.fullSize) {
+          setBoxDims(box, x, userPadding.top, width, params.outerHeight - userPadding.bottom - userPadding.top);
+        } else {
+          setBoxDims(box, x, chartArea.top + stack.placed, width, height);
+        }
+        stack.start = x;
+        stack.placed += height;
+        x = box.right;
+      }
+    }
+    chartArea.x = x;
+    chartArea.y = y;
+  }
+  defaults.set('layout', {
+    autoPadding: true,
+    padding: {
+      top: 0,
+      right: 0,
+      bottom: 0,
+      left: 0
+    }
+  });
+  var layouts = {
+    addBox(chart, item) {
+      if (!chart.boxes) {
+        chart.boxes = [];
+      }
+      item.fullSize = item.fullSize || false;
+      item.position = item.position || 'top';
+      item.weight = item.weight || 0;
+      item._layers = item._layers || function() {
+        return [{
+          z: 0,
+          draw(chartArea) {
+            item.draw(chartArea);
+          }
+        }];
+      };
+      chart.boxes.push(item);
+    },
+    removeBox(chart, layoutItem) {
+      const index = chart.boxes ? chart.boxes.indexOf(layoutItem) : -1;
+      if (index !== -1) {
+        chart.boxes.splice(index, 1);
+      }
+    },
+    configure(chart, item, options) {
+      item.fullSize = options.fullSize;
+      item.position = options.position;
+      item.weight = options.weight;
+    },
+    update(chart, width, height, minPadding) {
+      if (!chart) {
+        return;
+      }
+      const padding = toPadding(chart.options.layout.padding);
+      const availableWidth = Math.max(width - padding.width, 0);
+      const availableHeight = Math.max(height - padding.height, 0);
+      const boxes = buildLayoutBoxes(chart.boxes);
+      const verticalBoxes = boxes.vertical;
+      const horizontalBoxes = boxes.horizontal;
+      each(chart.boxes, box => {
+        if (typeof box.beforeLayout === 'function') {
+          box.beforeLayout();
+        }
+      });
+      const visibleVerticalBoxCount = verticalBoxes.reduce((total, wrap) =>
+        wrap.box.options && wrap.box.options.display === false ? total : total + 1, 0) || 1;
+      const params = Object.freeze({
+        outerWidth: width,
+        outerHeight: height,
+        padding,
+        availableWidth,
+        availableHeight,
+        vBoxMaxWidth: availableWidth / 2 / visibleVerticalBoxCount,
+        hBoxMaxHeight: availableHeight / 2
+      });
+      const maxPadding = Object.assign({}, padding);
+      updateMaxPadding(maxPadding, toPadding(minPadding));
+      const chartArea = Object.assign({
+        maxPadding,
+        w: availableWidth,
+        h: availableHeight,
+        x: padding.left,
+        y: padding.top
+      }, padding);
+      const stacks = setLayoutDims(verticalBoxes.concat(horizontalBoxes), params);
+      fitBoxes(boxes.fullSize, chartArea, params, stacks);
+      fitBoxes(verticalBoxes, chartArea, params, stacks);
+      if (fitBoxes(horizontalBoxes, chartArea, params, stacks)) {
+        fitBoxes(verticalBoxes, chartArea, params, stacks);
+      }
+      handleMaxPadding(chartArea);
+      placeBoxes(boxes.leftAndTop, chartArea, params, stacks);
+      chartArea.x += chartArea.w;
+      chartArea.y += chartArea.h;
+      placeBoxes(boxes.rightAndBottom, chartArea, params, stacks);
+      chart.chartArea = {
+        left: chartArea.left,
+        top: chartArea.top,
+        right: chartArea.left + chartArea.w,
+        bottom: chartArea.top + chartArea.h,
+        height: chartArea.h,
+        width: chartArea.w,
+      };
+      each(boxes.chartArea, (layout) => {
+        const box = layout.box;
+        Object.assign(box, chart.chartArea);
+        box.update(chartArea.w, chartArea.h, {left: 0, top: 0, right: 0, bottom: 0});
+      });
+    }
+  };
+
+  class BasePlatform {
+    acquireContext(canvas, aspectRatio) {}
+    releaseContext(context) {
+      return false;
+    }
+    addEventListener(chart, type, listener) {}
+    removeEventListener(chart, type, listener) {}
+    getDevicePixelRatio() {
+      return 1;
+    }
+    getMaximumSize(element, width, height, aspectRatio) {
+      width = Math.max(0, width || element.width);
+      height = height || element.height;
+      return {
+        width,
+        height: Math.max(0, aspectRatio ? Math.floor(width / aspectRatio) : height)
+      };
+    }
+    isAttached(canvas) {
+      return true;
+    }
+    updateConfig(config) {
+    }
+  }
+
+  class BasicPlatform extends BasePlatform {
+    acquireContext(item) {
+      return item && item.getContext && item.getContext('2d') || null;
+    }
+    updateConfig(config) {
+      config.options.animation = false;
+    }
+  }
+
+  const EXPANDO_KEY = '$chartjs';
+  const EVENT_TYPES = {
+    touchstart: 'mousedown',
+    touchmove: 'mousemove',
+    touchend: 'mouseup',
+    pointerenter: 'mouseenter',
+    pointerdown: 'mousedown',
+    pointermove: 'mousemove',
+    pointerup: 'mouseup',
+    pointerleave: 'mouseout',
+    pointerout: 'mouseout'
+  };
+  const isNullOrEmpty = value => value === null || value === '';
+  function initCanvas(canvas, aspectRatio) {
+    const style = canvas.style;
+    const renderHeight = canvas.getAttribute('height');
+    const renderWidth = canvas.getAttribute('width');
+    canvas[EXPANDO_KEY] = {
+      initial: {
+        height: renderHeight,
+        width: renderWidth,
+        style: {
+          display: style.display,
+          height: style.height,
+          width: style.width
+        }
+      }
+    };
+    style.display = style.display || 'block';
+    style.boxSizing = style.boxSizing || 'border-box';
+    if (isNullOrEmpty(renderWidth)) {
+      const displayWidth = readUsedSize(canvas, 'width');
+      if (displayWidth !== undefined) {
+        canvas.width = displayWidth;
+      }
+    }
+    if (isNullOrEmpty(renderHeight)) {
+      if (canvas.style.height === '') {
+        canvas.height = canvas.width / (aspectRatio || 2);
+      } else {
+        const displayHeight = readUsedSize(canvas, 'height');
+        if (displayHeight !== undefined) {
+          canvas.height = displayHeight;
+        }
+      }
+    }
+    return canvas;
+  }
+  const eventListenerOptions = supportsEventListenerOptions ? {passive: true} : false;
+  function addListener(node, type, listener) {
+    node.addEventListener(type, listener, eventListenerOptions);
+  }
+  function removeListener(chart, type, listener) {
+    chart.canvas.removeEventListener(type, listener, eventListenerOptions);
+  }
+  function fromNativeEvent(event, chart) {
+    const type = EVENT_TYPES[event.type] || event.type;
+    const {x, y} = getRelativePosition$1(event, chart);
+    return {
+      type,
+      chart,
+      native: event,
+      x: x !== undefined ? x : null,
+      y: y !== undefined ? y : null,
+    };
+  }
+  function nodeListContains(nodeList, canvas) {
+    for (const node of nodeList) {
+      if (node === canvas || node.contains(canvas)) {
+        return true;
+      }
+    }
+  }
+  function createAttachObserver(chart, type, listener) {
+    const canvas = chart.canvas;
+    const observer = new MutationObserver(entries => {
+      let trigger = false;
+      for (const entry of entries) {
+        trigger = trigger || nodeListContains(entry.addedNodes, canvas);
+        trigger = trigger && !nodeListContains(entry.removedNodes, canvas);
+      }
+      if (trigger) {
+        listener();
+      }
+    });
+    observer.observe(document, {childList: true, subtree: true});
+    return observer;
+  }
+  function createDetachObserver(chart, type, listener) {
+    const canvas = chart.canvas;
+    const observer = new MutationObserver(entries => {
+      let trigger = false;
+      for (const entry of entries) {
+        trigger = trigger || nodeListContains(entry.removedNodes, canvas);
+        trigger = trigger && !nodeListContains(entry.addedNodes, canvas);
+      }
+      if (trigger) {
+        listener();
+      }
+    });
+    observer.observe(document, {childList: true, subtree: true});
+    return observer;
+  }
+  const drpListeningCharts = new Map();
+  let oldDevicePixelRatio = 0;
+  function onWindowResize() {
+    const dpr = window.devicePixelRatio;
+    if (dpr === oldDevicePixelRatio) {
+      return;
+    }
+    oldDevicePixelRatio = dpr;
+    drpListeningCharts.forEach((resize, chart) => {
+      if (chart.currentDevicePixelRatio !== dpr) {
+        resize();
+      }
+    });
+  }
+  function listenDevicePixelRatioChanges(chart, resize) {
+    if (!drpListeningCharts.size) {
+      window.addEventListener('resize', onWindowResize);
+    }
+    drpListeningCharts.set(chart, resize);
+  }
+  function unlistenDevicePixelRatioChanges(chart) {
+    drpListeningCharts.delete(chart);
+    if (!drpListeningCharts.size) {
+      window.removeEventListener('resize', onWindowResize);
+    }
+  }
+  function createResizeObserver(chart, type, listener) {
+    const canvas = chart.canvas;
+    const container = canvas && _getParentNode(canvas);
+    if (!container) {
+      return;
+    }
+    const resize = throttled((width, height) => {
+      const w = container.clientWidth;
+      listener(width, height);
+      if (w < container.clientWidth) {
+        listener();
+      }
+    }, window);
+    const observer = new ResizeObserver(entries => {
+      const entry = entries[0];
+      const width = entry.contentRect.width;
+      const height = entry.contentRect.height;
+      if (width === 0 && height === 0) {
+        return;
+      }
+      resize(width, height);
+    });
+    observer.observe(container);
+    listenDevicePixelRatioChanges(chart, resize);
+    return observer;
+  }
+  function releaseObserver(chart, type, observer) {
+    if (observer) {
+      observer.disconnect();
+    }
+    if (type === 'resize') {
+      unlistenDevicePixelRatioChanges(chart);
+    }
+  }
+  function createProxyAndListen(chart, type, listener) {
+    const canvas = chart.canvas;
+    const proxy = throttled((event) => {
+      if (chart.ctx !== null) {
+        listener(fromNativeEvent(event, chart));
+      }
+    }, chart, (args) => {
+      const event = args[0];
+      return [event, event.offsetX, event.offsetY];
+    });
+    addListener(canvas, type, proxy);
+    return proxy;
+  }
+  class DomPlatform extends BasePlatform {
+    acquireContext(canvas, aspectRatio) {
+      const context = canvas && canvas.getContext && canvas.getContext('2d');
+      if (context && context.canvas === canvas) {
+        initCanvas(canvas, aspectRatio);
+        return context;
+      }
+      return null;
+    }
+    releaseContext(context) {
+      const canvas = context.canvas;
+      if (!canvas[EXPANDO_KEY]) {
+        return false;
+      }
+      const initial = canvas[EXPANDO_KEY].initial;
+      ['height', 'width'].forEach((prop) => {
+        const value = initial[prop];
+        if (isNullOrUndef(value)) {
+          canvas.removeAttribute(prop);
+        } else {
+          canvas.setAttribute(prop, value);
+        }
+      });
+      const style = initial.style || {};
+      Object.keys(style).forEach((key) => {
+        canvas.style[key] = style[key];
+      });
+      canvas.width = canvas.width;
+      delete canvas[EXPANDO_KEY];
+      return true;
+    }
+    addEventListener(chart, type, listener) {
+      this.removeEventListener(chart, type);
+      const proxies = chart.$proxies || (chart.$proxies = {});
+      const handlers = {
+        attach: createAttachObserver,
+        detach: createDetachObserver,
+        resize: createResizeObserver
+      };
+      const handler = handlers[type] || createProxyAndListen;
+      proxies[type] = handler(chart, type, listener);
+    }
+    removeEventListener(chart, type) {
+      const proxies = chart.$proxies || (chart.$proxies = {});
+      const proxy = proxies[type];
+      if (!proxy) {
+        return;
+      }
+      const handlers = {
+        attach: releaseObserver,
+        detach: releaseObserver,
+        resize: releaseObserver
+      };
+      const handler = handlers[type] || removeListener;
+      handler(chart, type, proxy);
+      proxies[type] = undefined;
+    }
+    getDevicePixelRatio() {
+      return window.devicePixelRatio;
+    }
+    getMaximumSize(canvas, width, height, aspectRatio) {
+      return getMaximumSize(canvas, width, height, aspectRatio);
+    }
+    isAttached(canvas) {
+      const container = _getParentNode(canvas);
+      return !!(container && container.isConnected);
+    }
+  }
+
+  function _detectPlatform(canvas) {
+    if (!_isDomSupported() || (typeof OffscreenCanvas !== 'undefined' && canvas instanceof OffscreenCanvas)) {
+      return BasicPlatform;
+    }
+    return DomPlatform;
+  }
+
   class PluginService {
     constructor() {
       this._init = [];
@@ -7495,6 +7678,7 @@
     }
   }
   function allPlugins(config) {
+    const localIds = {};
     const plugins = [];
     const keys = Object.keys(registry.plugins.items);
     for (let i = 0; i < keys.length; i++) {
@@ -7505,9 +7689,10 @@
       const plugin = local[i];
       if (plugins.indexOf(plugin) === -1) {
         plugins.push(plugin);
+        localIds[plugin.id] = true;
       }
     }
-    return plugins;
+    return {plugins, localIds};
   }
   function getOpts(options, all) {
     if (!all && options === false) {
@@ -7518,11 +7703,10 @@
     }
     return options;
   }
-  function createDescriptors(chart, plugins, options, all) {
+  function createDescriptors(chart, {plugins, localIds}, options, all) {
     const result = [];
     const context = chart.getContext();
-    for (let i = 0; i < plugins.length; i++) {
-      const plugin = plugins[i];
+    for (const plugin of plugins) {
       const id = plugin.id;
       const opts = getOpts(options[id], all);
       if (opts === null) {
@@ -7530,15 +7714,22 @@
       }
       result.push({
         plugin,
-        options: pluginOpts(chart.config, plugin, opts, context)
+        options: pluginOpts(chart.config, {plugin, local: localIds[id]}, opts, context)
       });
     }
     return result;
   }
-  function pluginOpts(config, plugin, opts, context) {
+  function pluginOpts(config, {plugin, local}, opts, context) {
     const keys = config.pluginScopeKeys(plugin);
     const scopes = config.getOptionScopes(opts, keys);
-    return config.createResolver(scopes, context, [''], {scriptable: false, indexable: false, allKeys: true});
+    if (local && plugin.defaults) {
+      scopes.push(plugin.defaults);
+    }
+    return config.createResolver(scopes, context, [''], {
+      scriptable: false,
+      indexable: false,
+      allKeys: true
+    });
   }
 
   function getIndexAxis(type, options) {
@@ -7824,7 +8015,7 @@
     return false;
   }
 
-  var version$2 = "3.7.0";
+  var version$2 = "3.9.1";
 
   const KNOWN_POSITIONS = ['top', 'bottom', 'left', 'right', 'chartArea'];
   function positionIsHorizontal(position, axis) {
@@ -7894,7 +8085,7 @@
       if (existingChart) {
         throw new Error(
           'Canvas is already in use. Chart with ID \'' + existingChart.id + '\'' +
-  				' must be destroyed before the canvas can be reused.'
+  				' must be destroyed before the canvas with ID \'' + existingChart.canvas.id + '\' can be reused.'
         );
       }
       const options = config.createResolver(config.chartOptionScopes(), this.getContext());
@@ -8365,6 +8556,9 @@
       args.cancelable = false;
       this.notifyPlugins('afterDatasetDraw', args);
     }
+    isPointInArea(point) {
+      return _isPointInArea(point, this.chartArea, this._minPadding);
+    }
     getElementsAtEventForMode(e, mode, options, useFinalPosition) {
       const method = Interaction.modes[mode];
       if (typeof method === 'function') {
@@ -8604,7 +8798,7 @@
         event: e,
         replay,
         cancelable: true,
-        inChartArea: _isPointInArea(e, this.chartArea, this._minPadding)
+        inChartArea: this.isPointInArea(e)
       };
       const eventFilter = (plugin) => (plugin.options.events || this.options.events).includes(e.native.type);
       if (this.notifyPlugins('beforeEvent', args, eventFilter) === false) {
@@ -8731,7 +8925,7 @@
       y: y + r * Math.sin(theta),
     };
   }
-  function pathArc(ctx, element, offset, spacing, end) {
+  function pathArc(ctx, element, offset, spacing, end, circular) {
     const {x, y, startAngle: start, pixelMargin, innerRadius: innerR} = element;
     const outerRadius = Math.max(element.outerRadius + spacing + offset - pixelMargin, 0);
     const innerRadius = innerR > 0 ? innerR + spacing + offset + pixelMargin : 0;
@@ -8744,7 +8938,7 @@
       const adjustedAngle = avNogSpacingRadius !== 0 ? (alpha * avNogSpacingRadius) / (avNogSpacingRadius + spacing) : alpha;
       spacingOffset = (alpha - adjustedAngle) / 2;
     }
-    const beta = Math.max(0.001, alpha * outerRadius - offset / PI$1) / outerRadius;
+    const beta = Math.max(0.001, alpha * outerRadius - offset / PI) / outerRadius;
     const angleOffset = (alpha - beta) / 2;
     const startAngle = start + angleOffset + spacingOffset;
     const endAngle = end - angleOffset - spacingOffset;
@@ -8758,35 +8952,45 @@
     const innerStartAdjustedAngle = startAngle + innerStart / innerStartAdjustedRadius;
     const innerEndAdjustedAngle = endAngle - innerEnd / innerEndAdjustedRadius;
     ctx.beginPath();
-    ctx.arc(x, y, outerRadius, outerStartAdjustedAngle, outerEndAdjustedAngle);
-    if (outerEnd > 0) {
-      const pCenter = rThetaToXY(outerEndAdjustedRadius, outerEndAdjustedAngle, x, y);
-      ctx.arc(pCenter.x, pCenter.y, outerEnd, outerEndAdjustedAngle, endAngle + HALF_PI);
-    }
-    const p4 = rThetaToXY(innerEndAdjustedRadius, endAngle, x, y);
-    ctx.lineTo(p4.x, p4.y);
-    if (innerEnd > 0) {
-      const pCenter = rThetaToXY(innerEndAdjustedRadius, innerEndAdjustedAngle, x, y);
-      ctx.arc(pCenter.x, pCenter.y, innerEnd, endAngle + HALF_PI, innerEndAdjustedAngle + Math.PI);
-    }
-    ctx.arc(x, y, innerRadius, endAngle - (innerEnd / innerRadius), startAngle + (innerStart / innerRadius), true);
-    if (innerStart > 0) {
-      const pCenter = rThetaToXY(innerStartAdjustedRadius, innerStartAdjustedAngle, x, y);
-      ctx.arc(pCenter.x, pCenter.y, innerStart, innerStartAdjustedAngle + Math.PI, startAngle - HALF_PI);
-    }
-    const p8 = rThetaToXY(outerStartAdjustedRadius, startAngle, x, y);
-    ctx.lineTo(p8.x, p8.y);
-    if (outerStart > 0) {
-      const pCenter = rThetaToXY(outerStartAdjustedRadius, outerStartAdjustedAngle, x, y);
-      ctx.arc(pCenter.x, pCenter.y, outerStart, startAngle - HALF_PI, outerStartAdjustedAngle);
+    if (circular) {
+      ctx.arc(x, y, outerRadius, outerStartAdjustedAngle, outerEndAdjustedAngle);
+      if (outerEnd > 0) {
+        const pCenter = rThetaToXY(outerEndAdjustedRadius, outerEndAdjustedAngle, x, y);
+        ctx.arc(pCenter.x, pCenter.y, outerEnd, outerEndAdjustedAngle, endAngle + HALF_PI);
+      }
+      const p4 = rThetaToXY(innerEndAdjustedRadius, endAngle, x, y);
+      ctx.lineTo(p4.x, p4.y);
+      if (innerEnd > 0) {
+        const pCenter = rThetaToXY(innerEndAdjustedRadius, innerEndAdjustedAngle, x, y);
+        ctx.arc(pCenter.x, pCenter.y, innerEnd, endAngle + HALF_PI, innerEndAdjustedAngle + Math.PI);
+      }
+      ctx.arc(x, y, innerRadius, endAngle - (innerEnd / innerRadius), startAngle + (innerStart / innerRadius), true);
+      if (innerStart > 0) {
+        const pCenter = rThetaToXY(innerStartAdjustedRadius, innerStartAdjustedAngle, x, y);
+        ctx.arc(pCenter.x, pCenter.y, innerStart, innerStartAdjustedAngle + Math.PI, startAngle - HALF_PI);
+      }
+      const p8 = rThetaToXY(outerStartAdjustedRadius, startAngle, x, y);
+      ctx.lineTo(p8.x, p8.y);
+      if (outerStart > 0) {
+        const pCenter = rThetaToXY(outerStartAdjustedRadius, outerStartAdjustedAngle, x, y);
+        ctx.arc(pCenter.x, pCenter.y, outerStart, startAngle - HALF_PI, outerStartAdjustedAngle);
+      }
+    } else {
+      ctx.moveTo(x, y);
+      const outerStartX = Math.cos(outerStartAdjustedAngle) * outerRadius + x;
+      const outerStartY = Math.sin(outerStartAdjustedAngle) * outerRadius + y;
+      ctx.lineTo(outerStartX, outerStartY);
+      const outerEndX = Math.cos(outerEndAdjustedAngle) * outerRadius + x;
+      const outerEndY = Math.sin(outerEndAdjustedAngle) * outerRadius + y;
+      ctx.lineTo(outerEndX, outerEndY);
     }
     ctx.closePath();
   }
-  function drawArc(ctx, element, offset, spacing) {
+  function drawArc(ctx, element, offset, spacing, circular) {
     const {fullCircles, startAngle, circumference} = element;
     let endAngle = element.endAngle;
     if (fullCircles) {
-      pathArc(ctx, element, offset, spacing, startAngle + TAU);
+      pathArc(ctx, element, offset, spacing, startAngle + TAU, circular);
       for (let i = 0; i < fullCircles; ++i) {
         ctx.fill();
       }
@@ -8797,7 +9001,7 @@
         }
       }
     }
-    pathArc(ctx, element, offset, spacing, endAngle);
+    pathArc(ctx, element, offset, spacing, endAngle, circular);
     ctx.fill();
     return endAngle;
   }
@@ -8820,7 +9024,7 @@
       ctx.stroke();
     }
   }
-  function drawBorder(ctx, element, offset, spacing, endAngle) {
+  function drawBorder(ctx, element, offset, spacing, endAngle, circular) {
     const {options} = element;
     const {borderWidth, borderJoinStyle} = options;
     const inner = options.borderAlign === 'inner';
@@ -8840,7 +9044,7 @@
     if (inner) {
       clipArc(ctx, element, endAngle);
     }
-    pathArc(ctx, element, offset, spacing, endAngle);
+    pathArc(ctx, element, offset, spacing, endAngle, circular);
     ctx.stroke();
   }
   class ArcElement extends Element {
@@ -8899,6 +9103,7 @@
       const {options, circumference} = this;
       const offset = (options.offset || 0) / 2;
       const spacing = (options.spacing || 0) / 2;
+      const circular = options.circular;
       this.pixelMargin = (options.borderAlign === 'inner') ? 0.33 : 0;
       this.fullCircles = circumference > TAU ? Math.floor(circumference / TAU) : 0;
       if (circumference === 0 || this.innerRadius < 0 || this.outerRadius < 0) {
@@ -8910,14 +9115,14 @@
         radiusOffset = offset / 2;
         const halfAngle = (this.startAngle + this.endAngle) / 2;
         ctx.translate(Math.cos(halfAngle) * radiusOffset, Math.sin(halfAngle) * radiusOffset);
-        if (this.circumference >= PI$1) {
+        if (this.circumference >= PI) {
           radiusOffset = offset;
         }
       }
       ctx.fillStyle = options.backgroundColor;
       ctx.strokeStyle = options.borderColor;
-      const endAngle = drawArc(ctx, this, radiusOffset, spacing);
-      drawBorder(ctx, this, radiusOffset, spacing, endAngle);
+      const endAngle = drawArc(ctx, this, radiusOffset, spacing, circular);
+      drawBorder(ctx, this, radiusOffset, spacing, endAngle, circular);
       ctx.restore();
     }
   }
@@ -8931,6 +9136,7 @@
     offset: 0,
     spacing: 0,
     angle: undefined,
+    circular: true,
   };
   ArcElement.defaultRoutes = {
     backgroundColor: 'backgroundColor'
@@ -9078,7 +9284,7 @@
     }
   }
   const usePath2D = typeof Path2D === 'function';
-  function draw$1(ctx, line, start, count) {
+  function draw$2(ctx, line, start, count) {
     if (usePath2D && !line.options.segment) {
       strokePathWithCache(ctx, line, start, count);
     } else {
@@ -9180,7 +9386,7 @@
       const points = this.points || [];
       if (points.length && options.borderWidth) {
         ctx.save();
-        draw$1(ctx, this, start, count);
+        draw$2(ctx, this, start, count);
         ctx.restore();
       }
       if (this.animated) {
@@ -9602,7 +9808,7 @@
         if (resolve([indexAxis, chart.options.indexAxis]) === 'y') {
           return;
         }
-        if (meta.type !== 'line') {
+        if (!meta.controller.supportsDecimation) {
           return;
         }
         const xAxis = chart.scales[meta.xAxisID];
@@ -9651,10 +9857,179 @@
     }
   };
 
-  function getLineByIndex(chart, index) {
-    const meta = chart.getDatasetMeta(index);
-    const visible = meta && chart.isDatasetVisible(index);
-    return visible ? meta.dataset : null;
+  function _segments(line, target, property) {
+    const segments = line.segments;
+    const points = line.points;
+    const tpoints = target.points;
+    const parts = [];
+    for (const segment of segments) {
+      let {start, end} = segment;
+      end = _findSegmentEnd(start, end, points);
+      const bounds = _getBounds(property, points[start], points[end], segment.loop);
+      if (!target.segments) {
+        parts.push({
+          source: segment,
+          target: bounds,
+          start: points[start],
+          end: points[end]
+        });
+        continue;
+      }
+      const targetSegments = _boundSegments(target, bounds);
+      for (const tgt of targetSegments) {
+        const subBounds = _getBounds(property, tpoints[tgt.start], tpoints[tgt.end], tgt.loop);
+        const fillSources = _boundSegment(segment, points, subBounds);
+        for (const fillSource of fillSources) {
+          parts.push({
+            source: fillSource,
+            target: tgt,
+            start: {
+              [property]: _getEdge(bounds, subBounds, 'start', Math.max)
+            },
+            end: {
+              [property]: _getEdge(bounds, subBounds, 'end', Math.min)
+            }
+          });
+        }
+      }
+    }
+    return parts;
+  }
+  function _getBounds(property, first, last, loop) {
+    if (loop) {
+      return;
+    }
+    let start = first[property];
+    let end = last[property];
+    if (property === 'angle') {
+      start = _normalizeAngle(start);
+      end = _normalizeAngle(end);
+    }
+    return {property, start, end};
+  }
+  function _pointsFromSegments(boundary, line) {
+    const {x = null, y = null} = boundary || {};
+    const linePoints = line.points;
+    const points = [];
+    line.segments.forEach(({start, end}) => {
+      end = _findSegmentEnd(start, end, linePoints);
+      const first = linePoints[start];
+      const last = linePoints[end];
+      if (y !== null) {
+        points.push({x: first.x, y});
+        points.push({x: last.x, y});
+      } else if (x !== null) {
+        points.push({x, y: first.y});
+        points.push({x, y: last.y});
+      }
+    });
+    return points;
+  }
+  function _findSegmentEnd(start, end, points) {
+    for (;end > start; end--) {
+      const point = points[end];
+      if (!isNaN(point.x) && !isNaN(point.y)) {
+        break;
+      }
+    }
+    return end;
+  }
+  function _getEdge(a, b, prop, fn) {
+    if (a && b) {
+      return fn(a[prop], b[prop]);
+    }
+    return a ? a[prop] : b ? b[prop] : 0;
+  }
+
+  function _createBoundaryLine(boundary, line) {
+    let points = [];
+    let _loop = false;
+    if (isArray(boundary)) {
+      _loop = true;
+      points = boundary;
+    } else {
+      points = _pointsFromSegments(boundary, line);
+    }
+    return points.length ? new LineElement({
+      points,
+      options: {tension: 0},
+      _loop,
+      _fullLoop: _loop
+    }) : null;
+  }
+  function _shouldApplyFill(source) {
+    return source && source.fill !== false;
+  }
+
+  function _resolveTarget(sources, index, propagate) {
+    const source = sources[index];
+    let fill = source.fill;
+    const visited = [index];
+    let target;
+    if (!propagate) {
+      return fill;
+    }
+    while (fill !== false && visited.indexOf(fill) === -1) {
+      if (!isNumberFinite(fill)) {
+        return fill;
+      }
+      target = sources[fill];
+      if (!target) {
+        return false;
+      }
+      if (target.visible) {
+        return fill;
+      }
+      visited.push(fill);
+      fill = target.fill;
+    }
+    return false;
+  }
+  function _decodeFill(line, index, count) {
+    const fill = parseFillOption(line);
+    if (isObject(fill)) {
+      return isNaN(fill.value) ? false : fill;
+    }
+    let target = parseFloat(fill);
+    if (isNumberFinite(target) && Math.floor(target) === target) {
+      return decodeTargetIndex(fill[0], index, target, count);
+    }
+    return ['origin', 'start', 'end', 'stack', 'shape'].indexOf(fill) >= 0 && fill;
+  }
+  function decodeTargetIndex(firstCh, index, target, count) {
+    if (firstCh === '-' || firstCh === '+') {
+      target = index + target;
+    }
+    if (target === index || target < 0 || target >= count) {
+      return false;
+    }
+    return target;
+  }
+  function _getTargetPixel(fill, scale) {
+    let pixel = null;
+    if (fill === 'start') {
+      pixel = scale.bottom;
+    } else if (fill === 'end') {
+      pixel = scale.top;
+    } else if (isObject(fill)) {
+      pixel = scale.getPixelForValue(fill.value);
+    } else if (scale.getBasePixel) {
+      pixel = scale.getBasePixel();
+    }
+    return pixel;
+  }
+  function _getTargetValue(fill, scale, startValue) {
+    let value;
+    if (fill === 'start') {
+      value = startValue;
+    } else if (fill === 'end') {
+      value = scale.options.reverse ? scale.min : scale.max;
+    } else if (isObject(fill)) {
+      value = fill.value;
+    } else {
+      value = scale.getBaseValue();
+    }
+    return value;
   }
   function parseFillOption(line) {
     const options = line.options;
@@ -9671,138 +10046,14 @@
     }
     return fill;
   }
-  function decodeFill(line, index, count) {
-    const fill = parseFillOption(line);
-    if (isObject(fill)) {
-      return isNaN(fill.value) ? false : fill;
-    }
-    let target = parseFloat(fill);
-    if (isNumberFinite(target) && Math.floor(target) === target) {
-      if (fill[0] === '-' || fill[0] === '+') {
-        target = index + target;
-      }
-      if (target === index || target < 0 || target >= count) {
-        return false;
-      }
-      return target;
-    }
-    return ['origin', 'start', 'end', 'stack', 'shape'].indexOf(fill) >= 0 && fill;
-  }
-  function computeLinearBoundary(source) {
-    const {scale = {}, fill} = source;
-    let target = null;
-    let horizontal;
-    if (fill === 'start') {
-      target = scale.bottom;
-    } else if (fill === 'end') {
-      target = scale.top;
-    } else if (isObject(fill)) {
-      target = scale.getPixelForValue(fill.value);
-    } else if (scale.getBasePixel) {
-      target = scale.getBasePixel();
-    }
-    if (isNumberFinite(target)) {
-      horizontal = scale.isHorizontal();
-      return {
-        x: horizontal ? target : null,
-        y: horizontal ? null : target
-      };
-    }
-    return null;
-  }
-  class simpleArc {
-    constructor(opts) {
-      this.x = opts.x;
-      this.y = opts.y;
-      this.radius = opts.radius;
-    }
-    pathSegment(ctx, bounds, opts) {
-      const {x, y, radius} = this;
-      bounds = bounds || {start: 0, end: TAU};
-      ctx.arc(x, y, radius, bounds.end, bounds.start, true);
-      return !opts.bounds;
-    }
-    interpolate(point) {
-      const {x, y, radius} = this;
-      const angle = point.angle;
-      return {
-        x: x + Math.cos(angle) * radius,
-        y: y + Math.sin(angle) * radius,
-        angle
-      };
-    }
-  }
-  function computeCircularBoundary(source) {
-    const {scale, fill} = source;
-    const options = scale.options;
-    const length = scale.getLabels().length;
-    const target = [];
-    const start = options.reverse ? scale.max : scale.min;
-    const end = options.reverse ? scale.min : scale.max;
-    let i, center, value;
-    if (fill === 'start') {
-      value = start;
-    } else if (fill === 'end') {
-      value = end;
-    } else if (isObject(fill)) {
-      value = fill.value;
-    } else {
-      value = scale.getBaseValue();
-    }
-    if (options.grid.circular) {
-      center = scale.getPointPositionForValue(0, start);
-      return new simpleArc({
-        x: center.x,
-        y: center.y,
-        radius: scale.getDistanceFromCenterForValue(value)
-      });
-    }
-    for (i = 0; i < length; ++i) {
-      target.push(scale.getPointPositionForValue(i, value));
-    }
-    return target;
-  }
-  function computeBoundary(source) {
-    const scale = source.scale || {};
-    if (scale.getPointPositionForValue) {
-      return computeCircularBoundary(source);
-    }
-    return computeLinearBoundary(source);
-  }
-  function findSegmentEnd(start, end, points) {
-    for (;end > start; end--) {
-      const point = points[end];
-      if (!isNaN(point.x) && !isNaN(point.y)) {
-        break;
-      }
-    }
-    return end;
-  }
-  function pointsFromSegments(boundary, line) {
-    const {x = null, y = null} = boundary || {};
-    const linePoints = line.points;
-    const points = [];
-    line.segments.forEach(({start, end}) => {
-      end = findSegmentEnd(start, end, linePoints);
-      const first = linePoints[start];
-      const last = linePoints[end];
-      if (y !== null) {
-        points.push({x: first.x, y});
-        points.push({x: last.x, y});
-      } else if (x !== null) {
-        points.push({x, y: first.y});
-        points.push({x, y: last.y});
-      }
-    });
-    return points;
-  }
-  function buildStackLine(source) {
+
+  function _buildStackLine(source) {
     const {scale, index, line} = source;
     const points = [];
     const segments = line.segments;
     const sourcePoints = line.points;
     const linesBelow = getLinesBelow(scale, index);
-    linesBelow.push(createBoundaryLine({x: null, y: scale.bottom}, line));
+    linesBelow.push(_createBoundaryLine({x: null, y: scale.bottom}, line));
     for (let i = 0; i < segments.length; i++) {
       const segment = segments[i];
       for (let j = segment.start; j <= segment.end; j++) {
@@ -9866,13 +10117,37 @@
     }
     return {first, last, point};
   }
-  function getTarget(source) {
+
+  class simpleArc {
+    constructor(opts) {
+      this.x = opts.x;
+      this.y = opts.y;
+      this.radius = opts.radius;
+    }
+    pathSegment(ctx, bounds, opts) {
+      const {x, y, radius} = this;
+      bounds = bounds || {start: 0, end: TAU};
+      ctx.arc(x, y, radius, bounds.end, bounds.start, true);
+      return !opts.bounds;
+    }
+    interpolate(point) {
+      const {x, y, radius} = this;
+      const angle = point.angle;
+      return {
+        x: x + Math.cos(angle) * radius,
+        y: y + Math.sin(angle) * radius,
+        angle
+      };
+    }
+  }
+
+  function _getTarget(source) {
     const {chart, fill, line} = source;
     if (isNumberFinite(fill)) {
       return getLineByIndex(chart, fill);
     }
     if (fill === 'stack') {
-      return buildStackLine(source);
+      return _buildStackLine(source);
     }
     if (fill === 'shape') {
       return true;
@@ -9881,128 +10156,108 @@
     if (boundary instanceof simpleArc) {
       return boundary;
     }
-    return createBoundaryLine(boundary, line);
+    return _createBoundaryLine(boundary, line);
   }
-  function createBoundaryLine(boundary, line) {
-    let points = [];
-    let _loop = false;
-    if (isArray(boundary)) {
-      _loop = true;
-      points = boundary;
-    } else {
-      points = pointsFromSegments(boundary, line);
-    }
-    return points.length ? new LineElement({
-      points,
-      options: {tension: 0},
-      _loop,
-      _fullLoop: _loop
-    }) : null;
+  function getLineByIndex(chart, index) {
+    const meta = chart.getDatasetMeta(index);
+    const visible = meta && chart.isDatasetVisible(index);
+    return visible ? meta.dataset : null;
   }
-  function resolveTarget(sources, index, propagate) {
-    const source = sources[index];
-    let fill = source.fill;
-    const visited = [index];
-    let target;
-    if (!propagate) {
-      return fill;
+  function computeBoundary(source) {
+    const scale = source.scale || {};
+    if (scale.getPointPositionForValue) {
+      return computeCircularBoundary(source);
     }
-    while (fill !== false && visited.indexOf(fill) === -1) {
-      if (!isNumberFinite(fill)) {
-        return fill;
-      }
-      target = sources[fill];
-      if (!target) {
-        return false;
-      }
-      if (target.visible) {
-        return fill;
-      }
-      visited.push(fill);
-      fill = target.fill;
-    }
-    return false;
+    return computeLinearBoundary(source);
   }
-  function _clip(ctx, target, clipY) {
+  function computeLinearBoundary(source) {
+    const {scale = {}, fill} = source;
+    const pixel = _getTargetPixel(fill, scale);
+    if (isNumberFinite(pixel)) {
+      const horizontal = scale.isHorizontal();
+      return {
+        x: horizontal ? pixel : null,
+        y: horizontal ? null : pixel
+      };
+    }
+    return null;
+  }
+  function computeCircularBoundary(source) {
+    const {scale, fill} = source;
+    const options = scale.options;
+    const length = scale.getLabels().length;
+    const start = options.reverse ? scale.max : scale.min;
+    const value = _getTargetValue(fill, scale, start);
+    const target = [];
+    if (options.grid.circular) {
+      const center = scale.getPointPositionForValue(0, start);
+      return new simpleArc({
+        x: center.x,
+        y: center.y,
+        radius: scale.getDistanceFromCenterForValue(value)
+      });
+    }
+    for (let i = 0; i < length; ++i) {
+      target.push(scale.getPointPositionForValue(i, value));
+    }
+    return target;
+  }
+
+  function _drawfill(ctx, source, area) {
+    const target = _getTarget(source);
+    const {line, scale, axis} = source;
+    const lineOpts = line.options;
+    const fillOption = lineOpts.fill;
+    const color = lineOpts.backgroundColor;
+    const {above = color, below = color} = fillOption || {};
+    if (target && line.points.length) {
+      clipArea(ctx, area);
+      doFill(ctx, {line, target, above, below, area, scale, axis});
+      unclipArea(ctx);
+    }
+  }
+  function doFill(ctx, cfg) {
+    const {line, target, above, below, area, scale} = cfg;
+    const property = line._loop ? 'angle' : cfg.axis;
+    ctx.save();
+    if (property === 'x' && below !== above) {
+      clipVertical(ctx, target, area.top);
+      fill(ctx, {line, target, color: above, scale, property});
+      ctx.restore();
+      ctx.save();
+      clipVertical(ctx, target, area.bottom);
+    }
+    fill(ctx, {line, target, color: below, scale, property});
+    ctx.restore();
+  }
+  function clipVertical(ctx, target, clipY) {
+    const {segments, points} = target;
+    let first = true;
+    let lineLoop = false;
     ctx.beginPath();
-    target.path(ctx);
-    ctx.lineTo(target.last().x, clipY);
+    for (const segment of segments) {
+      const {start, end} = segment;
+      const firstPoint = points[start];
+      const lastPoint = points[_findSegmentEnd(start, end, points)];
+      if (first) {
+        ctx.moveTo(firstPoint.x, firstPoint.y);
+        first = false;
+      } else {
+        ctx.lineTo(firstPoint.x, clipY);
+        ctx.lineTo(firstPoint.x, firstPoint.y);
+      }
+      lineLoop = !!target.pathSegment(ctx, segment, {move: lineLoop});
+      if (lineLoop) {
+        ctx.closePath();
+      } else {
+        ctx.lineTo(lastPoint.x, clipY);
+      }
+    }
     ctx.lineTo(target.first().x, clipY);
     ctx.closePath();
     ctx.clip();
   }
-  function getBounds(property, first, last, loop) {
-    if (loop) {
-      return;
-    }
-    let start = first[property];
-    let end = last[property];
-    if (property === 'angle') {
-      start = _normalizeAngle(start);
-      end = _normalizeAngle(end);
-    }
-    return {property, start, end};
-  }
-  function _getEdge(a, b, prop, fn) {
-    if (a && b) {
-      return fn(a[prop], b[prop]);
-    }
-    return a ? a[prop] : b ? b[prop] : 0;
-  }
-  function _segments(line, target, property) {
-    const segments = line.segments;
-    const points = line.points;
-    const tpoints = target.points;
-    const parts = [];
-    for (const segment of segments) {
-      let {start, end} = segment;
-      end = findSegmentEnd(start, end, points);
-      const bounds = getBounds(property, points[start], points[end], segment.loop);
-      if (!target.segments) {
-        parts.push({
-          source: segment,
-          target: bounds,
-          start: points[start],
-          end: points[end]
-        });
-        continue;
-      }
-      const targetSegments = _boundSegments(target, bounds);
-      for (const tgt of targetSegments) {
-        const subBounds = getBounds(property, tpoints[tgt.start], tpoints[tgt.end], tgt.loop);
-        const fillSources = _boundSegment(segment, points, subBounds);
-        for (const fillSource of fillSources) {
-          parts.push({
-            source: fillSource,
-            target: tgt,
-            start: {
-              [property]: _getEdge(bounds, subBounds, 'start', Math.max)
-            },
-            end: {
-              [property]: _getEdge(bounds, subBounds, 'end', Math.min)
-            }
-          });
-        }
-      }
-    }
-    return parts;
-  }
-  function clipBounds(ctx, scale, bounds) {
-    const {top, bottom} = scale.chart.chartArea;
-    const {property, start, end} = bounds || {};
-    if (property === 'x') {
-      ctx.beginPath();
-      ctx.rect(start, top, end - start, bottom - top);
-      ctx.clip();
-    }
-  }
-  function interpolatedLineTo(ctx, target, point, property) {
-    const interpolatedPoint = target.interpolate(point, property);
-    if (interpolatedPoint) {
-      ctx.lineTo(interpolatedPoint.x, interpolatedPoint.y);
-    }
-  }
-  function _fill(ctx, cfg) {
+  function fill(ctx, cfg) {
     const {line, target, property, color, scale} = cfg;
     const segments = _segments(line, target, property);
     for (const {source: src, target: tgt, start, end} of segments) {
@@ -10010,7 +10265,7 @@
       const notShape = target !== true;
       ctx.save();
       ctx.fillStyle = backgroundColor;
-      clipBounds(ctx, scale, notShape && getBounds(property, start, end));
+      clipBounds(ctx, scale, notShape && _getBounds(property, start, end));
       ctx.beginPath();
       const lineLoop = !!line.pathSegment(ctx, src);
       let loop;
@@ -10031,34 +10286,23 @@
       ctx.restore();
     }
   }
-  function doFill(ctx, cfg) {
-    const {line, target, above, below, area, scale} = cfg;
-    const property = line._loop ? 'angle' : cfg.axis;
-    ctx.save();
-    if (property === 'x' && below !== above) {
-      _clip(ctx, target, area.top);
-      _fill(ctx, {line, target, color: above, scale, property});
-      ctx.restore();
-      ctx.save();
-      _clip(ctx, target, area.bottom);
-    }
-    _fill(ctx, {line, target, color: below, scale, property});
-    ctx.restore();
-  }
-  function drawfill(ctx, source, area) {
-    const target = getTarget(source);
-    const {line, scale, axis} = source;
-    const lineOpts = line.options;
-    const fillOption = lineOpts.fill;
-    const color = lineOpts.backgroundColor;
-    const {above = color, below = color} = fillOption || {};
-    if (target && line.points.length) {
-      clipArea(ctx, area);
-      doFill(ctx, {line, target, above, below, area, scale, axis});
-      unclipArea(ctx);
+  function clipBounds(ctx, scale, bounds) {
+    const {top, bottom} = scale.chart.chartArea;
+    const {property, start, end} = bounds || {};
+    if (property === 'x') {
+      ctx.beginPath();
+      ctx.rect(start, top, end - start, bottom - top);
+      ctx.clip();
     }
   }
-  var plugin_filler = {
+  function interpolatedLineTo(ctx, target, point, property) {
+    const interpolatedPoint = target.interpolate(point, property);
+    if (interpolatedPoint) {
+      ctx.lineTo(interpolatedPoint.x, interpolatedPoint.y);
+    }
+  }
+
+  var index = {
     id: 'filler',
     afterDatasetsUpdate(chart, _args, options) {
       const count = (chart.data.datasets || []).length;
@@ -10072,7 +10316,7 @@
           source = {
             visible: chart.isDatasetVisible(i),
             index: i,
-            fill: decodeFill(line, i, count),
+            fill: _decodeFill(line, i, count),
             chart,
             axis: meta.controller.options.indexAxis,
             scale: meta.vScale,
@@ -10087,7 +10331,7 @@
         if (!source || source.fill === false) {
           continue;
         }
-        source.fill = resolveTarget(sources, i, options.propagate);
+        source.fill = _resolveTarget(sources, i, options.propagate);
       }
     },
     beforeDraw(chart, _args, options) {
@@ -10100,8 +10344,8 @@
           continue;
         }
         source.line.updateControlPoints(area, source.axis);
-        if (draw) {
-          drawfill(chart.ctx, source, area);
+        if (draw && source.fill) {
+          _drawfill(chart.ctx, source, area);
         }
       }
     },
@@ -10112,17 +10356,17 @@
       const metasets = chart.getSortedVisibleDatasetMetas();
       for (let i = metasets.length - 1; i >= 0; --i) {
         const source = metasets[i].$filler;
-        if (source) {
-          drawfill(chart.ctx, source, chart.chartArea);
+        if (_shouldApplyFill(source)) {
+          _drawfill(chart.ctx, source, chart.chartArea);
         }
       }
     },
     beforeDatasetDraw(chart, args, options) {
       const source = args.meta.$filler;
-      if (!source || source.fill === false || options.drawTime !== 'beforeDatasetDraw') {
+      if (!_shouldApplyFill(source) || options.drawTime !== 'beforeDatasetDraw') {
         return;
       }
-      drawfill(chart.ctx, source, chart.chartArea);
+      _drawfill(chart.ctx, source, chart.chartArea);
     },
     defaults: {
       propagate: true,
@@ -10134,7 +10378,7 @@
     let {boxHeight = fontSize, boxWidth = fontSize} = labelOpts;
     if (labelOpts.usePointStyle) {
       boxHeight = Math.min(boxHeight, fontSize);
-      boxWidth = Math.min(boxWidth, fontSize);
+      boxWidth = labelOpts.pointStyleWidth || Math.min(boxWidth, fontSize);
     }
     return {
       boxWidth,
@@ -10351,14 +10595,14 @@
         ctx.setLineDash(valueOrDefault(legendItem.lineDash, []));
         if (labelOpts.usePointStyle) {
           const drawOptions = {
-            radius: boxWidth * Math.SQRT2 / 2,
+            radius: boxHeight * Math.SQRT2 / 2,
             pointStyle: legendItem.pointStyle,
             rotation: legendItem.rotation,
             borderWidth: lineWidth
           };
           const centerX = rtlHelper.xPlus(x, boxWidth / 2);
           const centerY = y + halfFontSize;
-          drawPoint(ctx, drawOptions, centerX, centerY);
+          drawPointLegend(ctx, drawOptions, centerX, centerY, labelOpts.pointStyleWidth && boxWidth);
         } else {
           const yBoxTop = y + Math.max((fontSize - boxHeight) / 2, 0);
           const xBoxLeft = rtlHelper.leftForLtr(x, boxWidth);
@@ -10496,7 +10740,7 @@
         return;
       }
       const hoveredItem = this._getLegendItemAt(e.x, e.y);
-      if (e.type === 'mousemove') {
+      if (e.type === 'mousemove' || e.type === 'mouseout') {
         const previous = this._hoveredItem;
         const sameItem = itemsEqual(previous, hoveredItem);
         if (previous && !sameItem) {
@@ -10512,7 +10756,7 @@
     }
   }
   function isListened(type, opts) {
-    if (type === 'mousemove' && (opts.onHover || opts.onLeave)) {
+    if ((type === 'mousemove' || type === 'mouseout') && (opts.onHover || opts.onLeave)) {
       return true;
     }
     if (opts.onClick && (type === 'click' || type === 'mouseup')) {
@@ -10665,11 +10909,11 @@
         if (options.position === 'left') {
           titleX = left + offset;
           titleY = _alignStartEnd(align, bottom, top);
-          rotation = PI$1 * -0.5;
+          rotation = PI * -0.5;
         } else {
           titleX = right - offset;
           titleY = _alignStartEnd(align, top, bottom);
-          rotation = PI$1 * 0.5;
+          rotation = PI * 0.5;
         }
         maxWidth = bottom - top;
       }
@@ -11300,7 +11544,7 @@
         ctx.fillStyle = labelColors.backgroundColor;
         drawPoint(ctx, drawOptions, centerX, centerY);
       } else {
-        ctx.lineWidth = labelColors.borderWidth || 1;
+        ctx.lineWidth = isObject(labelColors.borderWidth) ? Math.max(...Object.values(labelColors.borderWidth)) : (labelColors.borderWidth || 1);
         ctx.strokeStyle = labelColors.borderColor;
         ctx.setLineDash(labelColors.borderDash || []);
         ctx.lineDashOffset = labelColors.borderDashOffset || 0;
@@ -11462,6 +11706,9 @@
         }
       }
     }
+    _willRender() {
+      return !!this.opacity;
+    }
     draw(ctx) {
       const options = this.options.setContext(this.getContext());
       let opacity = this.opacity;
@@ -11582,16 +11829,16 @@
     },
     afterDraw(chart) {
       const tooltip = chart.tooltip;
-      const args = {
-        tooltip
-      };
-      if (chart.notifyPlugins('beforeTooltipDraw', args) === false) {
-        return;
-      }
-      if (tooltip) {
+      if (tooltip && tooltip._willRender()) {
+        const args = {
+          tooltip
+        };
+        if (chart.notifyPlugins('beforeTooltipDraw', args) === false) {
+          return;
+        }
         tooltip.draw(chart.ctx);
+        chart.notifyPlugins('afterTooltipDraw', args);
       }
-      chart.notifyPlugins('afterTooltipDraw', args);
     },
     afterEvent(chart, args) {
       if (chart.tooltip) {
@@ -11739,7 +11986,7 @@
   var plugins = /*#__PURE__*/Object.freeze({
   __proto__: null,
   Decimation: plugin_decimation,
-  Filler: plugin_filler,
+  Filler: index,
   Legend: plugin_legend,
   SubTitle: plugin_subtitle,
   Title: plugin_title,
@@ -12280,7 +12527,7 @@
     const padding = [];
     const valueCount = scale._pointLabels.length;
     const pointLabelOpts = scale.options.pointLabels;
-    const additionalAngle = pointLabelOpts.centerPointLabels ? PI$1 / valueCount : 0;
+    const additionalAngle = pointLabelOpts.centerPointLabels ? PI / valueCount : 0;
     for (let i = 0; i < valueCount; i++) {
       const opts = pointLabelOpts.setContext(scale.getPointLabelContext(i));
       padding[i] = opts.padding;
@@ -12328,7 +12575,7 @@
     const opts = scale.options;
     const extra = getTickBackdropHeight(opts) / 2;
     const outerDistance = scale.drawingArea;
-    const additionalAngle = opts.pointLabels.centerPointLabels ? PI$1 / valueCount : 0;
+    const additionalAngle = opts.pointLabels.centerPointLabels ? PI / valueCount : 0;
     for (let i = 0; i < valueCount; i++) {
       const pointLabelPosition = scale.getPointPosition(i, outerDistance + extra + padding[i], additionalAngle);
       const angle = Math.round(toDegrees(_normalizeAngle(pointLabelPosition.angle + HALF_PI)));
@@ -12380,9 +12627,26 @@
       const {x, y, textAlign, left, top, right, bottom} = scale._pointLabelItems[i];
       const {backdropColor} = optsAtIndex;
       if (!isNullOrUndef(backdropColor)) {
+        const borderRadius = toTRBLCorners(optsAtIndex.borderRadius);
         const padding = toPadding(optsAtIndex.backdropPadding);
         ctx.fillStyle = backdropColor;
-        ctx.fillRect(left - padding.left, top - padding.top, right - left + padding.width, bottom - top + padding.height);
+        const backdropLeft = left - padding.left;
+        const backdropTop = top - padding.top;
+        const backdropWidth = right - left + padding.width;
+        const backdropHeight = bottom - top + padding.height;
+        if (Object.values(borderRadius).some(v => v !== 0)) {
+          ctx.beginPath();
+          addRoundedRectPath(ctx, {
+            x: backdropLeft,
+            y: backdropTop,
+            w: backdropWidth,
+            h: backdropHeight,
+            radius: borderRadius,
+          });
+          ctx.fill();
+        } else {
+          ctx.fillRect(backdropLeft, backdropTop, backdropWidth, backdropHeight);
+        }
       }
       renderText(
         ctx,
@@ -12690,7 +12954,7 @@
   function sorter(a, b) {
     return a - b;
   }
-  function parse(scale, input) {
+  function parse$1(scale, input) {
     if (isNullOrUndef(input)) {
       return null;
     }
@@ -12796,6 +13060,7 @@
     init(scaleOpts, opts) {
       const time = scaleOpts.time || (scaleOpts.time = {});
       const adapter = this._adapter = new adapters._date(scaleOpts.adapters.date);
+      adapter.init(opts);
       mergeIf(time.displayFormats, adapter.formats());
       this._parseOpts = {
         parser: time.parser,
@@ -12809,7 +13074,7 @@
       if (raw === undefined) {
         return null;
       }
-      return parse(this, raw);
+      return parse$1(this, raw);
     }
     beforeLayout() {
       super.beforeLayout();
@@ -12875,6 +13140,11 @@
         ticks.reverse();
       }
       return ticksFromTimestamps(this, ticks, this._majorUnit);
+    }
+    afterAutoSkip() {
+      if (this.options.offsetAfterAutoskip) {
+        this.initOffsets(this.ticks.map(tick => +tick.value));
+      }
     }
     initOffsets(timestamps) {
       let start = 0;
@@ -13013,7 +13283,7 @@
       }
       const labels = this.getLabels();
       for (i = 0, ilen = labels.length; i < ilen; ++i) {
-        timestamps.push(parse(this, labels[i]));
+        timestamps.push(parse$1(this, labels[i]));
       }
       return (this._cache.labels = this._normalized ? timestamps : this.normalize(timestamps));
     }
@@ -13149,30 +13419,7191 @@
   Chart.register(...registerables);
 
   /**
+   * @module constants
+   * @summary Useful constants
+   * @description
+   * Collection of useful date constants.
+   *
+   * The constants could be imported from `date-fns/constants`:
+   *
+   * ```ts
+   * import { maxTime, minTime } from "./constants/date-fns/constants";
+   *
+   * function isAllowedTime(time) {
+   *   return time <= maxTime && time >= minTime;
+   * }
+   * ```
+   */
+
+  /**
+   * @constant
+   * @name millisecondsInWeek
+   * @summary Milliseconds in 1 week.
+   */
+  const millisecondsInWeek = 604800000;
+
+  /**
+   * @constant
+   * @name millisecondsInDay
+   * @summary Milliseconds in 1 day.
+   */
+  const millisecondsInDay = 86400000;
+
+  /**
+   * @constant
+   * @name millisecondsInMinute
+   * @summary Milliseconds in 1 minute
+   */
+  const millisecondsInMinute = 60000;
+
+  /**
+   * @constant
+   * @name millisecondsInHour
+   * @summary Milliseconds in 1 hour
+   */
+  const millisecondsInHour = 3600000;
+
+  /**
+   * @constant
+   * @name millisecondsInSecond
+   * @summary Milliseconds in 1 second
+   */
+  const millisecondsInSecond = 1000;
+
+  /**
+   * @constant
+   * @name constructFromSymbol
+   * @summary Symbol enabling Date extensions to inherit properties from the reference date.
+   *
+   * The symbol is used to enable the `constructFrom` function to construct a date
+   * using a reference date and a value. It allows to transfer extra properties
+   * from the reference date to the new date. It's useful for extensions like
+   * [`TZDate`](https://github.com/date-fns/tz) that accept a time zone as
+   * a constructor argument.
+   */
+  const constructFromSymbol = Symbol.for("constructDateFrom");
+
+  /**
+   * @name constructFrom
+   * @category Generic Helpers
+   * @summary Constructs a date using the reference date and the value
+   *
+   * @description
+   * The function constructs a new date using the constructor from the reference
+   * date and the given value. It helps to build generic functions that accept
+   * date extensions.
+   *
+   * It defaults to `Date` if the passed reference date is a number or a string.
+   *
+   * Starting from v3.7.0, it allows to construct a date using `[Symbol.for("constructDateFrom")]`
+   * enabling to transfer extra properties from the reference date to the new date.
+   * It's useful for extensions like [`TZDate`](https://github.com/date-fns/tz)
+   * that accept a time zone as a constructor argument.
+   *
+   * @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+   *
+   * @param date - The reference date to take constructor from
+   * @param value - The value to create the date
+   *
+   * @returns Date initialized using the given date and value
+   *
+   * @example
+   * import { constructFrom } from "./constructFrom/date-fns";
+   *
+   * // A function that clones a date preserving the original type
+   * function cloneDate<DateType extends Date>(date: DateType): DateType {
+   *   return constructFrom(
+   *     date, // Use constructor from the given date
+   *     date.getTime() // Use the date value to create a new date
+   *   );
+   * }
+   */
+  function constructFrom(date, value) {
+    if (typeof date === "function") return date(value);
+
+    if (date && typeof date === "object" && constructFromSymbol in date)
+      return date[constructFromSymbol](value);
+
+    if (date instanceof Date) return new date.constructor(value);
+
+    return new Date(value);
+  }
+
+  /**
+   * @name toDate
+   * @category Common Helpers
+   * @summary Convert the given argument to an instance of Date.
+   *
+   * @description
+   * Convert the given argument to an instance of Date.
+   *
+   * If the argument is an instance of Date, the function returns its clone.
+   *
+   * If the argument is a number, it is treated as a timestamp.
+   *
+   * If the argument is none of the above, the function returns Invalid Date.
+   *
+   * Starting from v3.7.0, it clones a date using `[Symbol.for("constructDateFrom")]`
+   * enabling to transfer extra properties from the reference date to the new date.
+   * It's useful for extensions like [`TZDate`](https://github.com/date-fns/tz)
+   * that accept a time zone as a constructor argument.
+   *
+   * **Note**: *all* Date arguments passed to any *date-fns* function is processed by `toDate`.
+   *
+   * @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+   * @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+   *
+   * @param argument - The value to convert
+   *
+   * @returns The parsed date in the local time zone
+   *
+   * @example
+   * // Clone the date:
+   * const result = toDate(new Date(2014, 1, 11, 11, 30, 30))
+   * //=> Tue Feb 11 2014 11:30:30
+   *
+   * @example
+   * // Convert the timestamp to date:
+   * const result = toDate(1392098430000)
+   * //=> Tue Feb 11 2014 11:30:30
+   */
+  function toDate(argument, context) {
+    // [TODO] Get rid of `toDate` or `constructFrom`?
+    return constructFrom(context || argument, argument);
+  }
+
+  /**
+   * The {@link addDays} function options.
+   */
+
+  /**
+   * @name addDays
+   * @category Day Helpers
+   * @summary Add the specified number of days to the given date.
+   *
+   * @description
+   * Add the specified number of days to the given date.
+   *
+   * @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+   * @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+   *
+   * @param date - The date to be changed
+   * @param amount - The amount of days to be added.
+   * @param options - An object with options
+   *
+   * @returns The new date with the days added
+   *
+   * @example
+   * // Add 10 days to 1 September 2014:
+   * const result = addDays(new Date(2014, 8, 1), 10)
+   * //=> Thu Sep 11 2014 00:00:00
+   */
+  function addDays(date, amount, options) {
+    const _date = toDate(date, options?.in);
+    if (isNaN(amount)) return constructFrom(options?.in || date, NaN);
+
+    // If 0 days, no-op to avoid changing times in the hour before end of DST
+    if (!amount) return _date;
+
+    _date.setDate(_date.getDate() + amount);
+    return _date;
+  }
+
+  /**
+   * The {@link addMonths} function options.
+   */
+
+  /**
+   * @name addMonths
+   * @category Month Helpers
+   * @summary Add the specified number of months to the given date.
+   *
+   * @description
+   * Add the specified number of months to the given date.
+   *
+   * @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+   * @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+   *
+   * @param date - The date to be changed
+   * @param amount - The amount of months to be added.
+   * @param options - The options object
+   *
+   * @returns The new date with the months added
+   *
+   * @example
+   * // Add 5 months to 1 September 2014:
+   * const result = addMonths(new Date(2014, 8, 1), 5)
+   * //=> Sun Feb 01 2015 00:00:00
+   *
+   * // Add one month to 30 January 2023:
+   * const result = addMonths(new Date(2023, 0, 30), 1)
+   * //=> Tue Feb 28 2023 00:00:00
+   */
+  function addMonths(date, amount, options) {
+    const _date = toDate(date, options?.in);
+    if (isNaN(amount)) return constructFrom(options?.in || date, NaN);
+    if (!amount) {
+      // If 0 months, no-op to avoid changing times in the hour before end of DST
+      return _date;
+    }
+    const dayOfMonth = _date.getDate();
+
+    // The JS Date object supports date math by accepting out-of-bounds values for
+    // month, day, etc. For example, new Date(2020, 0, 0) returns 31 Dec 2019 and
+    // new Date(2020, 13, 1) returns 1 Feb 2021.  This is *almost* the behavior we
+    // want except that dates will wrap around the end of a month, meaning that
+    // new Date(2020, 13, 31) will return 3 Mar 2021 not 28 Feb 2021 as desired. So
+    // we'll default to the end of the desired month by adding 1 to the desired
+    // month and using a date of 0 to back up one day to the end of the desired
+    // month.
+    const endOfDesiredMonth = constructFrom(options?.in || date, _date.getTime());
+    endOfDesiredMonth.setMonth(_date.getMonth() + amount + 1, 0);
+    const daysInMonth = endOfDesiredMonth.getDate();
+    if (dayOfMonth >= daysInMonth) {
+      // If we're already at the end of the month, then this is the correct date
+      // and we're done.
+      return endOfDesiredMonth;
+    } else {
+      // Otherwise, we now know that setting the original day-of-month value won't
+      // cause an overflow, so set the desired day-of-month. Note that we can't
+      // just set the date of `endOfDesiredMonth` because that object may have had
+      // its time changed in the unusual case where where a DST transition was on
+      // the last day of the month and its local time was in the hour skipped or
+      // repeated next to a DST transition.  So we use `date` instead which is
+      // guaranteed to still have the original time.
+      _date.setFullYear(
+        endOfDesiredMonth.getFullYear(),
+        endOfDesiredMonth.getMonth(),
+        dayOfMonth,
+      );
+      return _date;
+    }
+  }
+
+  /**
+   * The {@link addMilliseconds} function options.
+   */
+
+  /**
+   * @name addMilliseconds
+   * @category Millisecond Helpers
+   * @summary Add the specified number of milliseconds to the given date.
+   *
+   * @description
+   * Add the specified number of milliseconds to the given date.
+   *
+   * @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+   * @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+   *
+   * @param date - The date to be changed
+   * @param amount - The amount of milliseconds to be added.
+   * @param options - The options object
+   *
+   * @returns The new date with the milliseconds added
+   *
+   * @example
+   * // Add 750 milliseconds to 10 July 2014 12:45:30.000:
+   * const result = addMilliseconds(new Date(2014, 6, 10, 12, 45, 30, 0), 750)
+   * //=> Thu Jul 10 2014 12:45:30.750
+   */
+  function addMilliseconds(date, amount, options) {
+    return constructFrom(options?.in || date, +toDate(date) + amount);
+  }
+
+  /**
+   * The {@link addHours} function options.
+   */
+
+  /**
+   * @name addHours
+   * @category Hour Helpers
+   * @summary Add the specified number of hours to the given date.
+   *
+   * @description
+   * Add the specified number of hours to the given date.
+   *
+   * @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+   * @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+   *
+   * @param date - The date to be changed
+   * @param amount - The amount of hours to be added
+   * @param options - An object with options
+   *
+   * @returns The new date with the hours added
+   *
+   * @example
+   * // Add 2 hours to 10 July 2014 23:00:00:
+   * const result = addHours(new Date(2014, 6, 10, 23, 0), 2)
+   * //=> Fri Jul 11 2014 01:00:00
+   */
+  function addHours(date, amount, options) {
+    return addMilliseconds(date, amount * millisecondsInHour, options);
+  }
+
+  let defaultOptions = {};
+
+  function getDefaultOptions$1() {
+    return defaultOptions;
+  }
+
+  /**
+   * The {@link startOfWeek} function options.
+   */
+
+  /**
+   * @name startOfWeek
+   * @category Week Helpers
+   * @summary Return the start of a week for the given date.
+   *
+   * @description
+   * Return the start of a week for the given date.
+   * The result will be in the local timezone.
+   *
+   * @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+   * @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+   *
+   * @param date - The original date
+   * @param options - An object with options
+   *
+   * @returns The start of a week
+   *
+   * @example
+   * // The start of a week for 2 September 2014 11:55:00:
+   * const result = startOfWeek(new Date(2014, 8, 2, 11, 55, 0))
+   * //=> Sun Aug 31 2014 00:00:00
+   *
+   * @example
+   * // If the week starts on Monday, the start of the week for 2 September 2014 11:55:00:
+   * const result = startOfWeek(new Date(2014, 8, 2, 11, 55, 0), { weekStartsOn: 1 })
+   * //=> Mon Sep 01 2014 00:00:00
+   */
+  function startOfWeek(date, options) {
+    const defaultOptions = getDefaultOptions$1();
+    const weekStartsOn =
+      options?.weekStartsOn ??
+      options?.locale?.options?.weekStartsOn ??
+      defaultOptions.weekStartsOn ??
+      defaultOptions.locale?.options?.weekStartsOn ??
+      0;
+
+    const _date = toDate(date, options?.in);
+    const day = _date.getDay();
+    const diff = (day < weekStartsOn ? 7 : 0) + day - weekStartsOn;
+
+    _date.setDate(_date.getDate() - diff);
+    _date.setHours(0, 0, 0, 0);
+    return _date;
+  }
+
+  /**
+   * The {@link startOfISOWeek} function options.
+   */
+
+  /**
+   * @name startOfISOWeek
+   * @category ISO Week Helpers
+   * @summary Return the start of an ISO week for the given date.
+   *
+   * @description
+   * Return the start of an ISO week for the given date.
+   * The result will be in the local timezone.
+   *
+   * ISO week-numbering year: http://en.wikipedia.org/wiki/ISO_week_date
+   *
+   * @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+   * @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+   *
+   * @param date - The original date
+   * @param options - An object with options
+   *
+   * @returns The start of an ISO week
+   *
+   * @example
+   * // The start of an ISO week for 2 September 2014 11:55:00:
+   * const result = startOfISOWeek(new Date(2014, 8, 2, 11, 55, 0))
+   * //=> Mon Sep 01 2014 00:00:00
+   */
+  function startOfISOWeek(date, options) {
+    return startOfWeek(date, { ...options, weekStartsOn: 1 });
+  }
+
+  /**
+   * The {@link getISOWeekYear} function options.
+   */
+
+  /**
+   * @name getISOWeekYear
+   * @category ISO Week-Numbering Year Helpers
+   * @summary Get the ISO week-numbering year of the given date.
+   *
+   * @description
+   * Get the ISO week-numbering year of the given date,
+   * which always starts 3 days before the year's first Thursday.
+   *
+   * ISO week-numbering year: http://en.wikipedia.org/wiki/ISO_week_date
+   *
+   * @param date - The given date
+   *
+   * @returns The ISO week-numbering year
+   *
+   * @example
+   * // Which ISO-week numbering year is 2 January 2005?
+   * const result = getISOWeekYear(new Date(2005, 0, 2))
+   * //=> 2004
+   */
+  function getISOWeekYear(date, options) {
+    const _date = toDate(date, options?.in);
+    const year = _date.getFullYear();
+
+    const fourthOfJanuaryOfNextYear = constructFrom(_date, 0);
+    fourthOfJanuaryOfNextYear.setFullYear(year + 1, 0, 4);
+    fourthOfJanuaryOfNextYear.setHours(0, 0, 0, 0);
+    const startOfNextYear = startOfISOWeek(fourthOfJanuaryOfNextYear);
+
+    const fourthOfJanuaryOfThisYear = constructFrom(_date, 0);
+    fourthOfJanuaryOfThisYear.setFullYear(year, 0, 4);
+    fourthOfJanuaryOfThisYear.setHours(0, 0, 0, 0);
+    const startOfThisYear = startOfISOWeek(fourthOfJanuaryOfThisYear);
+
+    if (_date.getTime() >= startOfNextYear.getTime()) {
+      return year + 1;
+    } else if (_date.getTime() >= startOfThisYear.getTime()) {
+      return year;
+    } else {
+      return year - 1;
+    }
+  }
+
+  /**
+   * Google Chrome as of 67.0.3396.87 introduced timezones with offset that includes seconds.
+   * They usually appear for dates that denote time before the timezones were introduced
+   * (e.g. for 'Europe/Prague' timezone the offset is GMT+00:57:44 before 1 October 1891
+   * and GMT+01:00:00 after that date)
+   *
+   * Date#getTimezoneOffset returns the offset in minutes and would return 57 for the example above,
+   * which would lead to incorrect calculations.
+   *
+   * This function returns the timezone offset in milliseconds that takes seconds in account.
+   */
+  function getTimezoneOffsetInMilliseconds(date) {
+    const _date = toDate(date);
+    const utcDate = new Date(
+      Date.UTC(
+        _date.getFullYear(),
+        _date.getMonth(),
+        _date.getDate(),
+        _date.getHours(),
+        _date.getMinutes(),
+        _date.getSeconds(),
+        _date.getMilliseconds(),
+      ),
+    );
+    utcDate.setUTCFullYear(_date.getFullYear());
+    return +date - +utcDate;
+  }
+
+  function normalizeDates(context, ...dates) {
+    const normalize = constructFrom.bind(
+      null,
+      context || dates.find((date) => typeof date === "object"),
+    );
+    return dates.map(normalize);
+  }
+
+  /**
+   * The {@link startOfDay} function options.
+   */
+
+  /**
+   * @name startOfDay
+   * @category Day Helpers
+   * @summary Return the start of a day for the given date.
+   *
+   * @description
+   * Return the start of a day for the given date.
+   * The result will be in the local timezone.
+   *
+   * @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+   * @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+   *
+   * @param date - The original date
+   * @param options - The options
+   *
+   * @returns The start of a day
+   *
+   * @example
+   * // The start of a day for 2 September 2014 11:55:00:
+   * const result = startOfDay(new Date(2014, 8, 2, 11, 55, 0))
+   * //=> Tue Sep 02 2014 00:00:00
+   */
+  function startOfDay(date, options) {
+    const _date = toDate(date, options?.in);
+    _date.setHours(0, 0, 0, 0);
+    return _date;
+  }
+
+  /**
+   * The {@link differenceInCalendarDays} function options.
+   */
+
+  /**
+   * @name differenceInCalendarDays
+   * @category Day Helpers
+   * @summary Get the number of calendar days between the given dates.
+   *
+   * @description
+   * Get the number of calendar days between the given dates. This means that the times are removed
+   * from the dates and then the difference in days is calculated.
+   *
+   * @param laterDate - The later date
+   * @param earlierDate - The earlier date
+   * @param options - The options object
+   *
+   * @returns The number of calendar days
+   *
+   * @example
+   * // How many calendar days are between
+   * // 2 July 2011 23:00:00 and 2 July 2012 00:00:00?
+   * const result = differenceInCalendarDays(
+   *   new Date(2012, 6, 2, 0, 0),
+   *   new Date(2011, 6, 2, 23, 0)
+   * )
+   * //=> 366
+   * // How many calendar days are between
+   * // 2 July 2011 23:59:00 and 3 July 2011 00:01:00?
+   * const result = differenceInCalendarDays(
+   *   new Date(2011, 6, 3, 0, 1),
+   *   new Date(2011, 6, 2, 23, 59)
+   * )
+   * //=> 1
+   */
+  function differenceInCalendarDays(laterDate, earlierDate, options) {
+    const [laterDate_, earlierDate_] = normalizeDates(
+      options?.in,
+      laterDate,
+      earlierDate,
+    );
+
+    const laterStartOfDay = startOfDay(laterDate_);
+    const earlierStartOfDay = startOfDay(earlierDate_);
+
+    const laterTimestamp =
+      +laterStartOfDay - getTimezoneOffsetInMilliseconds(laterStartOfDay);
+    const earlierTimestamp =
+      +earlierStartOfDay - getTimezoneOffsetInMilliseconds(earlierStartOfDay);
+
+    // Round the number of days to the nearest integer because the number of
+    // milliseconds in a day is not constant (e.g. it's different in the week of
+    // the daylight saving time clock shift).
+    return Math.round((laterTimestamp - earlierTimestamp) / millisecondsInDay);
+  }
+
+  /**
+   * The {@link startOfISOWeekYear} function options.
+   */
+
+  /**
+   * @name startOfISOWeekYear
+   * @category ISO Week-Numbering Year Helpers
+   * @summary Return the start of an ISO week-numbering year for the given date.
+   *
+   * @description
+   * Return the start of an ISO week-numbering year,
+   * which always starts 3 days before the year's first Thursday.
+   * The result will be in the local timezone.
+   *
+   * ISO week-numbering year: http://en.wikipedia.org/wiki/ISO_week_date
+   *
+   * @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+   * @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+   *
+   * @param date - The original date
+   * @param options - An object with options
+   *
+   * @returns The start of an ISO week-numbering year
+   *
+   * @example
+   * // The start of an ISO week-numbering year for 2 July 2005:
+   * const result = startOfISOWeekYear(new Date(2005, 6, 2))
+   * //=> Mon Jan 03 2005 00:00:00
+   */
+  function startOfISOWeekYear(date, options) {
+    const year = getISOWeekYear(date, options);
+    const fourthOfJanuary = constructFrom(options?.in || date, 0);
+    fourthOfJanuary.setFullYear(year, 0, 4);
+    fourthOfJanuary.setHours(0, 0, 0, 0);
+    return startOfISOWeek(fourthOfJanuary);
+  }
+
+  /**
+   * The {@link addMinutes} function options.
+   */
+
+  /**
+   * @name addMinutes
+   * @category Minute Helpers
+   * @summary Add the specified number of minutes to the given date.
+   *
+   * @description
+   * Add the specified number of minutes to the given date.
+   *
+   * @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+   * @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+   *
+   * @param date - The date to be changed
+   * @param amount - The amount of minutes to be added.
+   * @param options - An object with options
+   *
+   * @returns The new date with the minutes added
+   *
+   * @example
+   * // Add 30 minutes to 10 July 2014 12:00:00:
+   * const result = addMinutes(new Date(2014, 6, 10, 12, 0), 30)
+   * //=> Thu Jul 10 2014 12:30:00
+   */
+  function addMinutes(date, amount, options) {
+    const _date = toDate(date, options?.in);
+    _date.setTime(_date.getTime() + amount * millisecondsInMinute);
+    return _date;
+  }
+
+  /**
+   * The {@link addQuarters} function options.
+   */
+
+  /**
+   * @name addQuarters
+   * @category Quarter Helpers
+   * @summary Add the specified number of year quarters to the given date.
+   *
+   * @description
+   * Add the specified number of year quarters to the given date.
+   *
+   * @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+   * @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+   *
+   * @param date - The date to be changed
+   * @param amount - The amount of quarters to be added.
+   * @param options - An object with options
+   *
+   * @returns The new date with the quarters added
+   *
+   * @example
+   * // Add 1 quarter to 1 September 2014:
+   * const result = addQuarters(new Date(2014, 8, 1), 1)
+   * //=; Mon Dec 01 2014 00:00:00
+   */
+  function addQuarters(date, amount, options) {
+    return addMonths(date, amount * 3, options);
+  }
+
+  /**
+   * The {@link addSeconds} function options.
+   */
+
+  /**
+   * @name addSeconds
+   * @category Second Helpers
+   * @summary Add the specified number of seconds to the given date.
+   *
+   * @description
+   * Add the specified number of seconds to the given date.
+   *
+   * @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+   * @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+   *
+   * @param date - The date to be changed
+   * @param amount - The amount of seconds to be added.
+   * @param options - An object with options
+   *
+   * @returns The new date with the seconds added
+   *
+   * @example
+   * // Add 30 seconds to 10 July 2014 12:45:00:
+   * const result = addSeconds(new Date(2014, 6, 10, 12, 45, 0), 30)
+   * //=> Thu Jul 10 2014 12:45:30
+   */
+  function addSeconds(date, amount, options) {
+    return addMilliseconds(date, amount * 1000, options);
+  }
+
+  /**
+   * The {@link addWeeks} function options.
+   */
+
+  /**
+   * @name addWeeks
+   * @category Week Helpers
+   * @summary Add the specified number of weeks to the given date.
+   *
+   * @description
+   * Add the specified number of weeks to the given date.
+   *
+   * @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+   * @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+   *
+   * @param date - The date to be changed
+   * @param amount - The amount of weeks to be added.
+   * @param options - An object with options
+   *
+   * @returns The new date with the weeks added
+   *
+   * @example
+   * // Add 4 weeks to 1 September 2014:
+   * const result = addWeeks(new Date(2014, 8, 1), 4)
+   * //=> Mon Sep 29 2014 00:00:00
+   */
+  function addWeeks(date, amount, options) {
+    return addDays(date, amount * 7, options);
+  }
+
+  /**
+   * The {@link addYears} function options.
+   */
+
+  /**
+   * @name addYears
+   * @category Year Helpers
+   * @summary Add the specified number of years to the given date.
+   *
+   * @description
+   * Add the specified number of years to the given date.
+   *
+   * @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+   * @typeParam ResultDate - The result `Date` type.
+   *
+   * @param date - The date to be changed
+   * @param amount - The amount of years to be added.
+   * @param options - The options
+   *
+   * @returns The new date with the years added
+   *
+   * @example
+   * // Add 5 years to 1 September 2014:
+   * const result = addYears(new Date(2014, 8, 1), 5)
+   * //=> Sun Sep 01 2019 00:00:00
+   */
+  function addYears(date, amount, options) {
+    return addMonths(date, amount * 12, options);
+  }
+
+  /**
+   * @name compareAsc
+   * @category Common Helpers
+   * @summary Compare the two dates and return -1, 0 or 1.
+   *
+   * @description
+   * Compare the two dates and return 1 if the first date is after the second,
+   * -1 if the first date is before the second or 0 if dates are equal.
+   *
+   * @param dateLeft - The first date to compare
+   * @param dateRight - The second date to compare
+   *
+   * @returns The result of the comparison
+   *
+   * @example
+   * // Compare 11 February 1987 and 10 July 1989:
+   * const result = compareAsc(new Date(1987, 1, 11), new Date(1989, 6, 10))
+   * //=> -1
+   *
+   * @example
+   * // Sort the array of dates:
+   * const result = [
+   *   new Date(1995, 6, 2),
+   *   new Date(1987, 1, 11),
+   *   new Date(1989, 6, 10)
+   * ].sort(compareAsc)
+   * //=> [
+   * //   Wed Feb 11 1987 00:00:00,
+   * //   Mon Jul 10 1989 00:00:00,
+   * //   Sun Jul 02 1995 00:00:00
+   * // ]
+   */
+  function compareAsc(dateLeft, dateRight) {
+    const diff = +toDate(dateLeft) - +toDate(dateRight);
+
+    if (diff < 0) return -1;
+    else if (diff > 0) return 1;
+
+    // Return 0 if diff is 0; return NaN if diff is NaN
+    return diff;
+  }
+
+  /**
+   * @name isDate
+   * @category Common Helpers
+   * @summary Is the given value a date?
+   *
+   * @description
+   * Returns true if the given value is an instance of Date. The function works for dates transferred across iframes.
+   *
+   * @param value - The value to check
+   *
+   * @returns True if the given value is a date
+   *
+   * @example
+   * // For a valid date:
+   * const result = isDate(new Date())
+   * //=> true
+   *
+   * @example
+   * // For an invalid date:
+   * const result = isDate(new Date(NaN))
+   * //=> true
+   *
+   * @example
+   * // For some value:
+   * const result = isDate('2014-02-31')
+   * //=> false
+   *
+   * @example
+   * // For an object:
+   * const result = isDate({})
+   * //=> false
+   */
+  function isDate(value) {
+    return (
+      value instanceof Date ||
+      (typeof value === "object" &&
+        Object.prototype.toString.call(value) === "[object Date]")
+    );
+  }
+
+  /**
+   * @name isValid
+   * @category Common Helpers
+   * @summary Is the given date valid?
+   *
+   * @description
+   * Returns false if argument is Invalid Date and true otherwise.
+   * Argument is converted to Date using `toDate`. See [toDate](https://date-fns.org/docs/toDate)
+   * Invalid Date is a Date, whose time value is NaN.
+   *
+   * Time value of Date: http://es5.github.io/#x15.9.1.1
+   *
+   * @param date - The date to check
+   *
+   * @returns The date is valid
+   *
+   * @example
+   * // For the valid date:
+   * const result = isValid(new Date(2014, 1, 31))
+   * //=> true
+   *
+   * @example
+   * // For the value, convertible into a date:
+   * const result = isValid(1393804800000)
+   * //=> true
+   *
+   * @example
+   * // For the invalid date:
+   * const result = isValid(new Date(''))
+   * //=> false
+   */
+  function isValid(date) {
+    return !((!isDate(date) && typeof date !== "number") || isNaN(+toDate(date)));
+  }
+
+  /**
+   * The {@link differenceInCalendarMonths} function options.
+   */
+
+  /**
+   * @name differenceInCalendarMonths
+   * @category Month Helpers
+   * @summary Get the number of calendar months between the given dates.
+   *
+   * @description
+   * Get the number of calendar months between the given dates.
+   *
+   * @param laterDate - The later date
+   * @param earlierDate - The earlier date
+   * @param options - An object with options
+   *
+   * @returns The number of calendar months
+   *
+   * @example
+   * // How many calendar months are between 31 January 2014 and 1 September 2014?
+   * const result = differenceInCalendarMonths(
+   *   new Date(2014, 8, 1),
+   *   new Date(2014, 0, 31)
+   * )
+   * //=> 8
+   */
+  function differenceInCalendarMonths(laterDate, earlierDate, options) {
+    const [laterDate_, earlierDate_] = normalizeDates(
+      options?.in,
+      laterDate,
+      earlierDate,
+    );
+
+    const yearsDiff = laterDate_.getFullYear() - earlierDate_.getFullYear();
+    const monthsDiff = laterDate_.getMonth() - earlierDate_.getMonth();
+
+    return yearsDiff * 12 + monthsDiff;
+  }
+
+  /**
+   * The {@link differenceInCalendarYears} function options.
+   */
+
+  /**
+   * @name differenceInCalendarYears
+   * @category Year Helpers
+   * @summary Get the number of calendar years between the given dates.
+   *
+   * @description
+   * Get the number of calendar years between the given dates.
+   *
+   * @param laterDate - The later date
+   * @param earlierDate - The earlier date
+   * @param options - An object with options
+
+   * @returns The number of calendar years
+   *
+   * @example
+   * // How many calendar years are between 31 December 2013 and 11 February 2015?
+   * const result = differenceInCalendarYears(
+   *   new Date(2015, 1, 11),
+   *   new Date(2013, 11, 31)
+   * );
+   * //=> 2
+   */
+  function differenceInCalendarYears(laterDate, earlierDate, options) {
+    const [laterDate_, earlierDate_] = normalizeDates(
+      options?.in,
+      laterDate,
+      earlierDate,
+    );
+    return laterDate_.getFullYear() - earlierDate_.getFullYear();
+  }
+
+  /**
+   * The {@link differenceInDays} function options.
+   */
+
+  /**
+   * @name differenceInDays
+   * @category Day Helpers
+   * @summary Get the number of full days between the given dates.
+   *
+   * @description
+   * Get the number of full day periods between two dates. Fractional days are
+   * truncated towards zero.
+   *
+   * One "full day" is the distance between a local time in one day to the same
+   * local time on the next or previous day. A full day can sometimes be less than
+   * or more than 24 hours if a daylight savings change happens between two dates.
+   *
+   * To ignore DST and only measure exact 24-hour periods, use this instead:
+   * `Math.trunc(differenceInHours(dateLeft, dateRight)/24)|0`.
+   *
+   * @param laterDate - The later date
+   * @param earlierDate - The earlier date
+   * @param options - An object with options
+   *
+   * @returns The number of full days according to the local timezone
+   *
+   * @example
+   * // How many full days are between
+   * // 2 July 2011 23:00:00 and 2 July 2012 00:00:00?
+   * const result = differenceInDays(
+   *   new Date(2012, 6, 2, 0, 0),
+   *   new Date(2011, 6, 2, 23, 0)
+   * )
+   * //=> 365
+   *
+   * @example
+   * // How many full days are between
+   * // 2 July 2011 23:59:00 and 3 July 2011 00:01:00?
+   * const result = differenceInDays(
+   *   new Date(2011, 6, 3, 0, 1),
+   *   new Date(2011, 6, 2, 23, 59)
+   * )
+   * //=> 0
+   *
+   * @example
+   * // How many full days are between
+   * // 1 March 2020 0:00 and 1 June 2020 0:00 ?
+   * // Note: because local time is used, the
+   * // result will always be 92 days, even in
+   * // time zones where DST starts and the
+   * // period has only 92*24-1 hours.
+   * const result = differenceInDays(
+   *   new Date(2020, 5, 1),
+   *   new Date(2020, 2, 1)
+   * )
+   * //=> 92
+   */
+  function differenceInDays(laterDate, earlierDate, options) {
+    const [laterDate_, earlierDate_] = normalizeDates(
+      options?.in,
+      laterDate,
+      earlierDate,
+    );
+
+    const sign = compareLocalAsc(laterDate_, earlierDate_);
+    const difference = Math.abs(
+      differenceInCalendarDays(laterDate_, earlierDate_),
+    );
+
+    laterDate_.setDate(laterDate_.getDate() - sign * difference);
+
+    // Math.abs(diff in full days - diff in calendar days) === 1 if last calendar day is not full
+    // If so, result must be decreased by 1 in absolute value
+    const isLastDayNotFull = Number(
+      compareLocalAsc(laterDate_, earlierDate_) === -sign,
+    );
+
+    const result = sign * (difference - isLastDayNotFull);
+    // Prevent negative zero
+    return result === 0 ? 0 : result;
+  }
+
+  // Like `compareAsc` but uses local time not UTC, which is needed
+  // for accurate equality comparisons of UTC timestamps that end up
+  // having the same representation in local time, e.g. one hour before
+  // DST ends vs. the instant that DST ends.
+  function compareLocalAsc(laterDate, earlierDate) {
+    const diff =
+      laterDate.getFullYear() - earlierDate.getFullYear() ||
+      laterDate.getMonth() - earlierDate.getMonth() ||
+      laterDate.getDate() - earlierDate.getDate() ||
+      laterDate.getHours() - earlierDate.getHours() ||
+      laterDate.getMinutes() - earlierDate.getMinutes() ||
+      laterDate.getSeconds() - earlierDate.getSeconds() ||
+      laterDate.getMilliseconds() - earlierDate.getMilliseconds();
+
+    if (diff < 0) return -1;
+    if (diff > 0) return 1;
+
+    // Return 0 if diff is 0; return NaN if diff is NaN
+    return diff;
+  }
+
+  function getRoundingMethod(method) {
+    return (number) => {
+      const round = method ? Math[method] : Math.trunc;
+      const result = round(number);
+      // Prevent negative zero
+      return result === 0 ? 0 : result;
+    };
+  }
+
+  /**
+   * The {@link differenceInHours} function options.
+   */
+
+  /**
+   * @name differenceInHours
+   * @category Hour Helpers
+   * @summary Get the number of hours between the given dates.
+   *
+   * @description
+   * Get the number of hours between the given dates.
+   *
+   * @param laterDate - The later date
+   * @param earlierDate - The earlier date
+   * @param options - An object with options.
+   *
+   * @returns The number of hours
+   *
+   * @example
+   * // How many hours are between 2 July 2014 06:50:00 and 2 July 2014 19:00:00?
+   * const result = differenceInHours(
+   *   new Date(2014, 6, 2, 19, 0),
+   *   new Date(2014, 6, 2, 6, 50)
+   * )
+   * //=> 12
+   */
+  function differenceInHours(laterDate, earlierDate, options) {
+    const [laterDate_, earlierDate_] = normalizeDates(
+      options?.in,
+      laterDate,
+      earlierDate,
+    );
+    const diff = (+laterDate_ - +earlierDate_) / millisecondsInHour;
+    return getRoundingMethod(options?.roundingMethod)(diff);
+  }
+
+  /**
+   * @name differenceInMilliseconds
+   * @category Millisecond Helpers
+   * @summary Get the number of milliseconds between the given dates.
+   *
+   * @description
+   * Get the number of milliseconds between the given dates.
+   *
+   * @param laterDate - The later date
+   * @param earlierDate - The earlier date
+   *
+   * @returns The number of milliseconds
+   *
+   * @example
+   * // How many milliseconds are between
+   * // 2 July 2014 12:30:20.600 and 2 July 2014 12:30:21.700?
+   * const result = differenceInMilliseconds(
+   *   new Date(2014, 6, 2, 12, 30, 21, 700),
+   *   new Date(2014, 6, 2, 12, 30, 20, 600)
+   * )
+   * //=> 1100
+   */
+  function differenceInMilliseconds(laterDate, earlierDate) {
+    return +toDate(laterDate) - +toDate(earlierDate);
+  }
+
+  /**
+   * The {@link differenceInMinutes} function options.
+   */
+
+  /**
+   * @name differenceInMinutes
+   * @category Minute Helpers
+   * @summary Get the number of minutes between the given dates.
+   *
+   * @description
+   * Get the signed number of full (rounded towards 0) minutes between the given dates.
+   *
+   * @param dateLeft - The later date
+   * @param dateRight - The earlier date
+   * @param options - An object with options.
+   *
+   * @returns The number of minutes
+   *
+   * @example
+   * // How many minutes are between 2 July 2014 12:07:59 and 2 July 2014 12:20:00?
+   * const result = differenceInMinutes(
+   *   new Date(2014, 6, 2, 12, 20, 0),
+   *   new Date(2014, 6, 2, 12, 7, 59)
+   * )
+   * //=> 12
+   *
+   * @example
+   * // How many minutes are between 10:01:59 and 10:00:00
+   * const result = differenceInMinutes(
+   *   new Date(2000, 0, 1, 10, 0, 0),
+   *   new Date(2000, 0, 1, 10, 1, 59)
+   * )
+   * //=> -1
+   */
+  function differenceInMinutes(dateLeft, dateRight, options) {
+    const diff =
+      differenceInMilliseconds(dateLeft, dateRight) / millisecondsInMinute;
+    return getRoundingMethod(options?.roundingMethod)(diff);
+  }
+
+  /**
+   * The {@link endOfDay} function options.
+   */
+
+  /**
+   * @name endOfDay
+   * @category Day Helpers
+   * @summary Return the end of a day for the given date.
+   *
+   * @description
+   * Return the end of a day for the given date.
+   * The result will be in the local timezone.
+   *
+   * @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+   * @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+   *
+   * @param date - The original date
+   * @param options - An object with options
+   *
+   * @returns The end of a day
+   *
+   * @example
+   * // The end of a day for 2 September 2014 11:55:00:
+   * const result = endOfDay(new Date(2014, 8, 2, 11, 55, 0))
+   * //=> Tue Sep 02 2014 23:59:59.999
+   */
+  function endOfDay(date, options) {
+    const _date = toDate(date, options?.in);
+    _date.setHours(23, 59, 59, 999);
+    return _date;
+  }
+
+  /**
+   * The {@link endOfMonth} function options.
+   */
+
+  /**
+   * @name endOfMonth
+   * @category Month Helpers
+   * @summary Return the end of a month for the given date.
+   *
+   * @description
+   * Return the end of a month for the given date.
+   * The result will be in the local timezone.
+   *
+   * @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+   * @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+   *
+   * @param date - The original date
+   * @param options - An object with options
+   *
+   * @returns The end of a month
+   *
+   * @example
+   * // The end of a month for 2 September 2014 11:55:00:
+   * const result = endOfMonth(new Date(2014, 8, 2, 11, 55, 0))
+   * //=> Tue Sep 30 2014 23:59:59.999
+   */
+  function endOfMonth(date, options) {
+    const _date = toDate(date, options?.in);
+    const month = _date.getMonth();
+    _date.setFullYear(_date.getFullYear(), month + 1, 0);
+    _date.setHours(23, 59, 59, 999);
+    return _date;
+  }
+
+  /**
+   * @name isLastDayOfMonth
+   * @category Month Helpers
+   * @summary Is the given date the last day of a month?
+   *
+   * @description
+   * Is the given date the last day of a month?
+   *
+   * @param date - The date to check
+   * @param options - An object with options
+   *
+   * @returns The date is the last day of a month
+   *
+   * @example
+   * // Is 28 February 2014 the last day of a month?
+   * const result = isLastDayOfMonth(new Date(2014, 1, 28))
+   * //=> true
+   */
+  function isLastDayOfMonth(date, options) {
+    const _date = toDate(date, options?.in);
+    return +endOfDay(_date, options) === +endOfMonth(_date, options);
+  }
+
+  /**
+   * The {@link differenceInMonths} function options.
+   */
+
+  /**
+   * @name differenceInMonths
+   * @category Month Helpers
+   * @summary Get the number of full months between the given dates.
+   *
+   * @param laterDate - The later date
+   * @param earlierDate - The earlier date
+   * @param options - An object with options
+   *
+   * @returns The number of full months
+   *
+   * @example
+   * // How many full months are between 31 January 2014 and 1 September 2014?
+   * const result = differenceInMonths(new Date(2014, 8, 1), new Date(2014, 0, 31))
+   * //=> 7
+   */
+  function differenceInMonths(laterDate, earlierDate, options) {
+    const [laterDate_, workingLaterDate, earlierDate_] = normalizeDates(
+      options?.in,
+      laterDate,
+      laterDate,
+      earlierDate,
+    );
+
+    const sign = compareAsc(workingLaterDate, earlierDate_);
+    const difference = Math.abs(
+      differenceInCalendarMonths(workingLaterDate, earlierDate_),
+    );
+
+    if (difference < 1) return 0;
+
+    if (workingLaterDate.getMonth() === 1 && workingLaterDate.getDate() > 27)
+      workingLaterDate.setDate(30);
+
+    workingLaterDate.setMonth(workingLaterDate.getMonth() - sign * difference);
+
+    let isLastMonthNotFull = compareAsc(workingLaterDate, earlierDate_) === -sign;
+
+    if (
+      isLastDayOfMonth(laterDate_) &&
+      difference === 1 &&
+      compareAsc(laterDate_, earlierDate_) === 1
+    ) {
+      isLastMonthNotFull = false;
+    }
+
+    const result = sign * (difference - +isLastMonthNotFull);
+    return result === 0 ? 0 : result;
+  }
+
+  /**
+   * The {@link differenceInQuarters} function options.
+   */
+
+  /**
+   * @name differenceInQuarters
+   * @category Quarter Helpers
+   * @summary Get the number of quarters between the given dates.
+   *
+   * @description
+   * Get the number of quarters between the given dates.
+   *
+   * @param laterDate - The later date
+   * @param earlierDate - The earlier date
+   * @param options - An object with options.
+   *
+   * @returns The number of full quarters
+   *
+   * @example
+   * // How many full quarters are between 31 December 2013 and 2 July 2014?
+   * const result = differenceInQuarters(new Date(2014, 6, 2), new Date(2013, 11, 31))
+   * //=> 2
+   */
+  function differenceInQuarters(laterDate, earlierDate, options) {
+    const diff = differenceInMonths(laterDate, earlierDate, options) / 3;
+    return getRoundingMethod(options?.roundingMethod)(diff);
+  }
+
+  /**
+   * The {@link differenceInSeconds} function options.
+   */
+
+  /**
+   * @name differenceInSeconds
+   * @category Second Helpers
+   * @summary Get the number of seconds between the given dates.
+   *
+   * @description
+   * Get the number of seconds between the given dates.
+   *
+   * @param laterDate - The later date
+   * @param earlierDate - The earlier date
+   * @param options - An object with options.
+   *
+   * @returns The number of seconds
+   *
+   * @example
+   * // How many seconds are between
+   * // 2 July 2014 12:30:07.999 and 2 July 2014 12:30:20.000?
+   * const result = differenceInSeconds(
+   *   new Date(2014, 6, 2, 12, 30, 20, 0),
+   *   new Date(2014, 6, 2, 12, 30, 7, 999)
+   * )
+   * //=> 12
+   */
+  function differenceInSeconds(laterDate, earlierDate, options) {
+    const diff = differenceInMilliseconds(laterDate, earlierDate) / 1000;
+    return getRoundingMethod(options?.roundingMethod)(diff);
+  }
+
+  /**
+   * The {@link differenceInWeeks} function options.
+   */
+
+  /**
+   * @name differenceInWeeks
+   * @category Week Helpers
+   * @summary Get the number of full weeks between the given dates.
+   *
+   * @description
+   * Get the number of full weeks between two dates. Fractional weeks are
+   * truncated towards zero by default.
+   *
+   * One "full week" is the distance between a local time in one day to the same
+   * local time 7 days earlier or later. A full week can sometimes be less than
+   * or more than 7*24 hours if a daylight savings change happens between two dates.
+   *
+   * To ignore DST and only measure exact 7*24-hour periods, use this instead:
+   * `Math.trunc(differenceInHours(dateLeft, dateRight)/(7*24))|0`.
+   *
+   * @param laterDate - The later date
+   * @param earlierDate - The earlier date
+   * @param options - An object with options
+   *
+   * @returns The number of full weeks
+   *
+   * @example
+   * // How many full weeks are between 5 July 2014 and 20 July 2014?
+   * const result = differenceInWeeks(new Date(2014, 6, 20), new Date(2014, 6, 5))
+   * //=> 2
+   *
+   * @example
+   * // How many full weeks are between
+   * // 1 March 2020 0:00 and 6 June 2020 0:00 ?
+   * // Note: because local time is used, the
+   * // result will always be 8 weeks (54 days),
+   * // even if DST starts and the period has
+   * // only 54*24-1 hours.
+   * const result = differenceInWeeks(
+   *   new Date(2020, 5, 1),
+   *   new Date(2020, 2, 6)
+   * )
+   * //=> 8
+   */
+  function differenceInWeeks(laterDate, earlierDate, options) {
+    const diff = differenceInDays(laterDate, earlierDate, options) / 7;
+    return getRoundingMethod(options?.roundingMethod)(diff);
+  }
+
+  /**
+   * The {@link differenceInYears} function options.
+   */
+
+  /**
+   * @name differenceInYears
+   * @category Year Helpers
+   * @summary Get the number of full years between the given dates.
+   *
+   * @description
+   * Get the number of full years between the given dates.
+   *
+   * @param laterDate - The later date
+   * @param earlierDate - The earlier date
+   * @param options - An object with options
+   *
+   * @returns The number of full years
+   *
+   * @example
+   * // How many full years are between 31 December 2013 and 11 February 2015?
+   * const result = differenceInYears(new Date(2015, 1, 11), new Date(2013, 11, 31))
+   * //=> 1
+   */
+  function differenceInYears(laterDate, earlierDate, options) {
+    const [laterDate_, earlierDate_] = normalizeDates(
+      options?.in,
+      laterDate,
+      earlierDate,
+    );
+
+    // -1 if the left date is earlier than the right date
+    // 2023-12-31 - 2024-01-01 = -1
+    const sign = compareAsc(laterDate_, earlierDate_);
+
+    // First calculate the difference in calendar years
+    // 2024-01-01 - 2023-12-31 = 1 year
+    const diff = Math.abs(differenceInCalendarYears(laterDate_, earlierDate_));
+
+    // Now we need to calculate if the difference is full. To do that we set
+    // both dates to the same year and check if the both date's month and day
+    // form a full year.
+    laterDate_.setFullYear(1584);
+    earlierDate_.setFullYear(1584);
+
+    // For it to be true, when the later date is indeed later than the earlier date
+    // (2026-02-01 - 2023-12-10 = 3 years), the difference is full if
+    // the normalized later date is also later than the normalized earlier date.
+    // In our example, 1584-02-01 is earlier than 1584-12-10, so the difference
+    // is partial, hence we need to subtract 1 from the difference 3 - 1 = 2.
+    const partial = compareAsc(laterDate_, earlierDate_) === -sign;
+
+    const result = sign * (diff - +partial);
+
+    // Prevent negative zero
+    return result === 0 ? 0 : result;
+  }
+
+  /**
+   * The {@link startOfQuarter} function options.
+   */
+
+  /**
+   * @name startOfQuarter
+   * @category Quarter Helpers
+   * @summary Return the start of a year quarter for the given date.
+   *
+   * @description
+   * Return the start of a year quarter for the given date.
+   * The result will be in the local timezone.
+   *
+   * @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+   * @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+   *
+   * @param date - The original date
+   * @param options - The options
+   *
+   * @returns The start of a quarter
+   *
+   * @example
+   * // The start of a quarter for 2 September 2014 11:55:00:
+   * const result = startOfQuarter(new Date(2014, 8, 2, 11, 55, 0))
+   * //=> Tue Jul 01 2014 00:00:00
+   */
+  function startOfQuarter(date, options) {
+    const _date = toDate(date, options?.in);
+    const currentMonth = _date.getMonth();
+    const month = currentMonth - (currentMonth % 3);
+    _date.setMonth(month, 1);
+    _date.setHours(0, 0, 0, 0);
+    return _date;
+  }
+
+  /**
+   * The {@link startOfMonth} function options.
+   */
+
+  /**
+   * @name startOfMonth
+   * @category Month Helpers
+   * @summary Return the start of a month for the given date.
+   *
+   * @description
+   * Return the start of a month for the given date. The result will be in the local timezone.
+   *
+   * @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments.
+   * Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+   * @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed,
+   * or inferred from the arguments.
+   *
+   * @param date - The original date
+   * @param options - An object with options
+   *
+   * @returns The start of a month
+   *
+   * @example
+   * // The start of a month for 2 September 2014 11:55:00:
+   * const result = startOfMonth(new Date(2014, 8, 2, 11, 55, 0))
+   * //=> Mon Sep 01 2014 00:00:00
+   */
+  function startOfMonth(date, options) {
+    const _date = toDate(date, options?.in);
+    _date.setDate(1);
+    _date.setHours(0, 0, 0, 0);
+    return _date;
+  }
+
+  /**
+   * The {@link endOfYear} function options.
+   */
+
+  /**
+   * @name endOfYear
+   * @category Year Helpers
+   * @summary Return the end of a year for the given date.
+   *
+   * @description
+   * Return the end of a year for the given date.
+   * The result will be in the local timezone.
+   *
+   * @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+   * @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+   *
+   * @param date - The original date
+   * @param options - The options
+   *
+   * @returns The end of a year
+   *
+   * @example
+   * // The end of a year for 2 September 2014 11:55:00:
+   * const result = endOfYear(new Date(2014, 8, 2, 11, 55, 0))
+   * //=> Wed Dec 31 2014 23:59:59.999
+   */
+  function endOfYear(date, options) {
+    const _date = toDate(date, options?.in);
+    const year = _date.getFullYear();
+    _date.setFullYear(year + 1, 0, 0);
+    _date.setHours(23, 59, 59, 999);
+    return _date;
+  }
+
+  /**
+   * The {@link startOfYear} function options.
+   */
+
+  /**
+   * @name startOfYear
+   * @category Year Helpers
+   * @summary Return the start of a year for the given date.
+   *
+   * @description
+   * Return the start of a year for the given date.
+   * The result will be in the local timezone.
+   *
+   * @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+   * @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+   *
+   * @param date - The original date
+   * @param options - The options
+   *
+   * @returns The start of a year
+   *
+   * @example
+   * // The start of a year for 2 September 2014 11:55:00:
+   * const result = startOfYear(new Date(2014, 8, 2, 11, 55, 00))
+   * //=> Wed Jan 01 2014 00:00:00
+   */
+  function startOfYear(date, options) {
+    const date_ = toDate(date, options?.in);
+    date_.setFullYear(date_.getFullYear(), 0, 1);
+    date_.setHours(0, 0, 0, 0);
+    return date_;
+  }
+
+  /**
+   * The {@link endOfHour} function options.
+   */
+
+  /**
+   * @name endOfHour
+   * @category Hour Helpers
+   * @summary Return the end of an hour for the given date.
+   *
+   * @description
+   * Return the end of an hour for the given date.
+   * The result will be in the local timezone.
+   *
+   * @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+   * @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+   *
+   * @param date - The original date
+   * @param options - An object with options
+   *
+   * @returns The end of an hour
+   *
+   * @example
+   * // The end of an hour for 2 September 2014 11:55:00:
+   * const result = endOfHour(new Date(2014, 8, 2, 11, 55))
+   * //=> Tue Sep 02 2014 11:59:59.999
+   */
+  function endOfHour(date, options) {
+    const _date = toDate(date, options?.in);
+    _date.setMinutes(59, 59, 999);
+    return _date;
+  }
+
+  /**
+   * The {@link endOfWeek} function options.
+   */
+
+  /**
+   * @name endOfWeek
+   * @category Week Helpers
+   * @summary Return the end of a week for the given date.
+   *
+   * @description
+   * Return the end of a week for the given date.
+   * The result will be in the local timezone.
+   *
+   * @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+   * @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+   *
+   * @param date - The original date
+   * @param options - An object with options
+   *
+   * @returns The end of a week
+   *
+   * @example
+   * // The end of a week for 2 September 2014 11:55:00:
+   * const result = endOfWeek(new Date(2014, 8, 2, 11, 55, 0))
+   * //=> Sat Sep 06 2014 23:59:59.999
+   *
+   * @example
+   * // If the week starts on Monday, the end of the week for 2 September 2014 11:55:00:
+   * const result = endOfWeek(new Date(2014, 8, 2, 11, 55, 0), { weekStartsOn: 1 })
+   * //=> Sun Sep 07 2014 23:59:59.999
+   */
+  function endOfWeek(date, options) {
+    const defaultOptions = getDefaultOptions$1();
+    const weekStartsOn =
+      options?.weekStartsOn ??
+      options?.locale?.options?.weekStartsOn ??
+      defaultOptions.weekStartsOn ??
+      defaultOptions.locale?.options?.weekStartsOn ??
+      0;
+
+    const _date = toDate(date, options?.in);
+    const day = _date.getDay();
+    const diff = (day < weekStartsOn ? -7 : 0) + 6 - (day - weekStartsOn);
+
+    _date.setDate(_date.getDate() + diff);
+    _date.setHours(23, 59, 59, 999);
+    return _date;
+  }
+
+  /**
+   * The {@link endOfMinute} function options.
+   */
+
+  /**
+   * @name endOfMinute
+   * @category Minute Helpers
+   * @summary Return the end of a minute for the given date.
+   *
+   * @description
+   * Return the end of a minute for the given date.
+   * The result will be in the local timezone or the provided context.
+   *
+   * @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+   * @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+   *
+   * @param date - The original date
+   * @param options - An object with options
+   *
+   * @returns The end of a minute
+   *
+   * @example
+   * // The end of a minute for 1 December 2014 22:15:45.400:
+   * const result = endOfMinute(new Date(2014, 11, 1, 22, 15, 45, 400))
+   * //=> Mon Dec 01 2014 22:15:59.999
+   */
+  function endOfMinute(date, options) {
+    const _date = toDate(date, options?.in);
+    _date.setSeconds(59, 999);
+    return _date;
+  }
+
+  /**
+   * The {@link endOfQuarter} function options.
+   */
+
+  /**
+   * @name endOfQuarter
+   * @category Quarter Helpers
+   * @summary Return the end of a year quarter for the given date.
+   *
+   * @description
+   * Return the end of a year quarter for the given date.
+   * The result will be in the local timezone.
+   *
+   * @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+   * @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+   *
+   * @param date - The original date
+   * @param options - An object with options
+   *
+   * @returns The end of a quarter
+   *
+   * @example
+   * // The end of a quarter for 2 September 2014 11:55:00:
+   * const result = endOfQuarter(new Date(2014, 8, 2, 11, 55, 0))
+   * //=> Tue Sep 30 2014 23:59:59.999
+   */
+  function endOfQuarter(date, options) {
+    const _date = toDate(date, options?.in);
+    const currentMonth = _date.getMonth();
+    const month = currentMonth - (currentMonth % 3) + 3;
+    _date.setMonth(month, 0);
+    _date.setHours(23, 59, 59, 999);
+    return _date;
+  }
+
+  /**
+   * The {@link endOfSecond} function options.
+   */
+
+  /**
+   * @name endOfSecond
+   * @category Second Helpers
+   * @summary Return the end of a second for the given date.
+   *
+   * @description
+   * Return the end of a second for the given date.
+   * The result will be in the local timezone if no `in` option is specified.
+   *
+   * @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+   * @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+   *
+   * @param date - The original date
+   * @param options - An object with options
+   *
+   * @returns The end of a second
+   *
+   * @example
+   * // The end of a second for 1 December 2014 22:15:45.400:
+   * const result = endOfSecond(new Date(2014, 11, 1, 22, 15, 45, 400))
+   * //=> Mon Dec 01 2014 22:15:45.999
+   */
+  function endOfSecond(date, options) {
+    const _date = toDate(date, options?.in);
+    _date.setMilliseconds(999);
+    return _date;
+  }
+
+  const formatDistanceLocale = {
+    lessThanXSeconds: {
+      one: "less than a second",
+      other: "less than {{count}} seconds",
+    },
+
+    xSeconds: {
+      one: "1 second",
+      other: "{{count}} seconds",
+    },
+
+    halfAMinute: "half a minute",
+
+    lessThanXMinutes: {
+      one: "less than a minute",
+      other: "less than {{count}} minutes",
+    },
+
+    xMinutes: {
+      one: "1 minute",
+      other: "{{count}} minutes",
+    },
+
+    aboutXHours: {
+      one: "about 1 hour",
+      other: "about {{count}} hours",
+    },
+
+    xHours: {
+      one: "1 hour",
+      other: "{{count}} hours",
+    },
+
+    xDays: {
+      one: "1 day",
+      other: "{{count}} days",
+    },
+
+    aboutXWeeks: {
+      one: "about 1 week",
+      other: "about {{count}} weeks",
+    },
+
+    xWeeks: {
+      one: "1 week",
+      other: "{{count}} weeks",
+    },
+
+    aboutXMonths: {
+      one: "about 1 month",
+      other: "about {{count}} months",
+    },
+
+    xMonths: {
+      one: "1 month",
+      other: "{{count}} months",
+    },
+
+    aboutXYears: {
+      one: "about 1 year",
+      other: "about {{count}} years",
+    },
+
+    xYears: {
+      one: "1 year",
+      other: "{{count}} years",
+    },
+
+    overXYears: {
+      one: "over 1 year",
+      other: "over {{count}} years",
+    },
+
+    almostXYears: {
+      one: "almost 1 year",
+      other: "almost {{count}} years",
+    },
+  };
+
+  const formatDistance = (token, count, options) => {
+    let result;
+
+    const tokenValue = formatDistanceLocale[token];
+    if (typeof tokenValue === "string") {
+      result = tokenValue;
+    } else if (count === 1) {
+      result = tokenValue.one;
+    } else {
+      result = tokenValue.other.replace("{{count}}", count.toString());
+    }
+
+    if (options?.addSuffix) {
+      if (options.comparison && options.comparison > 0) {
+        return "in " + result;
+      } else {
+        return result + " ago";
+      }
+    }
+
+    return result;
+  };
+
+  function buildFormatLongFn(args) {
+    return (options = {}) => {
+      // TODO: Remove String()
+      const width = options.width ? String(options.width) : args.defaultWidth;
+      const format = args.formats[width] || args.formats[args.defaultWidth];
+      return format;
+    };
+  }
+
+  const dateFormats = {
+    full: "EEEE, MMMM do, y",
+    long: "MMMM do, y",
+    medium: "MMM d, y",
+    short: "MM/dd/yyyy",
+  };
+
+  const timeFormats = {
+    full: "h:mm:ss a zzzz",
+    long: "h:mm:ss a z",
+    medium: "h:mm:ss a",
+    short: "h:mm a",
+  };
+
+  const dateTimeFormats = {
+    full: "{{date}} 'at' {{time}}",
+    long: "{{date}} 'at' {{time}}",
+    medium: "{{date}}, {{time}}",
+    short: "{{date}}, {{time}}",
+  };
+
+  const formatLong = {
+    date: buildFormatLongFn({
+      formats: dateFormats,
+      defaultWidth: "full",
+    }),
+
+    time: buildFormatLongFn({
+      formats: timeFormats,
+      defaultWidth: "full",
+    }),
+
+    dateTime: buildFormatLongFn({
+      formats: dateTimeFormats,
+      defaultWidth: "full",
+    }),
+  };
+
+  const formatRelativeLocale = {
+    lastWeek: "'last' eeee 'at' p",
+    yesterday: "'yesterday at' p",
+    today: "'today at' p",
+    tomorrow: "'tomorrow at' p",
+    nextWeek: "eeee 'at' p",
+    other: "P",
+  };
+
+  const formatRelative = (token, _date, _baseDate, _options) =>
+    formatRelativeLocale[token];
+
+  /**
+   * The localize function argument callback which allows to convert raw value to
+   * the actual type.
+   *
+   * @param value - The value to convert
+   *
+   * @returns The converted value
+   */
+
+  /**
+   * The map of localized values for each width.
+   */
+
+  /**
+   * The index type of the locale unit value. It types conversion of units of
+   * values that don't start at 0 (i.e. quarters).
+   */
+
+  /**
+   * Converts the unit value to the tuple of values.
+   */
+
+  /**
+   * The tuple of localized era values. The first element represents BC,
+   * the second element represents AD.
+   */
+
+  /**
+   * The tuple of localized quarter values. The first element represents Q1.
+   */
+
+  /**
+   * The tuple of localized day values. The first element represents Sunday.
+   */
+
+  /**
+   * The tuple of localized month values. The first element represents January.
+   */
+
+  function buildLocalizeFn(args) {
+    return (value, options) => {
+      const context = options?.context ? String(options.context) : "standalone";
+
+      let valuesArray;
+      if (context === "formatting" && args.formattingValues) {
+        const defaultWidth = args.defaultFormattingWidth || args.defaultWidth;
+        const width = options?.width ? String(options.width) : defaultWidth;
+
+        valuesArray =
+          args.formattingValues[width] || args.formattingValues[defaultWidth];
+      } else {
+        const defaultWidth = args.defaultWidth;
+        const width = options?.width ? String(options.width) : args.defaultWidth;
+
+        valuesArray = args.values[width] || args.values[defaultWidth];
+      }
+      const index = args.argumentCallback ? args.argumentCallback(value) : value;
+
+      // @ts-expect-error - For some reason TypeScript just don't want to match it, no matter how hard we try. I challenge you to try to remove it!
+      return valuesArray[index];
+    };
+  }
+
+  const eraValues = {
+    narrow: ["B", "A"],
+    abbreviated: ["BC", "AD"],
+    wide: ["Before Christ", "Anno Domini"],
+  };
+
+  const quarterValues = {
+    narrow: ["1", "2", "3", "4"],
+    abbreviated: ["Q1", "Q2", "Q3", "Q4"],
+    wide: ["1st quarter", "2nd quarter", "3rd quarter", "4th quarter"],
+  };
+
+  // Note: in English, the names of days of the week and months are capitalized.
+  // If you are making a new locale based on this one, check if the same is true for the language you're working on.
+  // Generally, formatted dates should look like they are in the middle of a sentence,
+  // e.g. in Spanish language the weekdays and months should be in the lowercase.
+  const monthValues = {
+    narrow: ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"],
+    abbreviated: [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ],
+
+    wide: [
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December",
+    ],
+  };
+
+  const dayValues = {
+    narrow: ["S", "M", "T", "W", "T", "F", "S"],
+    short: ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"],
+    abbreviated: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+    wide: [
+      "Sunday",
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+    ],
+  };
+
+  const dayPeriodValues = {
+    narrow: {
+      am: "a",
+      pm: "p",
+      midnight: "mi",
+      noon: "n",
+      morning: "morning",
+      afternoon: "afternoon",
+      evening: "evening",
+      night: "night",
+    },
+    abbreviated: {
+      am: "AM",
+      pm: "PM",
+      midnight: "midnight",
+      noon: "noon",
+      morning: "morning",
+      afternoon: "afternoon",
+      evening: "evening",
+      night: "night",
+    },
+    wide: {
+      am: "a.m.",
+      pm: "p.m.",
+      midnight: "midnight",
+      noon: "noon",
+      morning: "morning",
+      afternoon: "afternoon",
+      evening: "evening",
+      night: "night",
+    },
+  };
+
+  const formattingDayPeriodValues = {
+    narrow: {
+      am: "a",
+      pm: "p",
+      midnight: "mi",
+      noon: "n",
+      morning: "in the morning",
+      afternoon: "in the afternoon",
+      evening: "in the evening",
+      night: "at night",
+    },
+    abbreviated: {
+      am: "AM",
+      pm: "PM",
+      midnight: "midnight",
+      noon: "noon",
+      morning: "in the morning",
+      afternoon: "in the afternoon",
+      evening: "in the evening",
+      night: "at night",
+    },
+    wide: {
+      am: "a.m.",
+      pm: "p.m.",
+      midnight: "midnight",
+      noon: "noon",
+      morning: "in the morning",
+      afternoon: "in the afternoon",
+      evening: "in the evening",
+      night: "at night",
+    },
+  };
+
+  const ordinalNumber = (dirtyNumber, _options) => {
+    const number = Number(dirtyNumber);
+
+    // If ordinal numbers depend on context, for example,
+    // if they are different for different grammatical genders,
+    // use `options.unit`.
+    //
+    // `unit` can be 'year', 'quarter', 'month', 'week', 'date', 'dayOfYear',
+    // 'day', 'hour', 'minute', 'second'.
+
+    const rem100 = number % 100;
+    if (rem100 > 20 || rem100 < 10) {
+      switch (rem100 % 10) {
+        case 1:
+          return number + "st";
+        case 2:
+          return number + "nd";
+        case 3:
+          return number + "rd";
+      }
+    }
+    return number + "th";
+  };
+
+  const localize = {
+    ordinalNumber,
+
+    era: buildLocalizeFn({
+      values: eraValues,
+      defaultWidth: "wide",
+    }),
+
+    quarter: buildLocalizeFn({
+      values: quarterValues,
+      defaultWidth: "wide",
+      argumentCallback: (quarter) => quarter - 1,
+    }),
+
+    month: buildLocalizeFn({
+      values: monthValues,
+      defaultWidth: "wide",
+    }),
+
+    day: buildLocalizeFn({
+      values: dayValues,
+      defaultWidth: "wide",
+    }),
+
+    dayPeriod: buildLocalizeFn({
+      values: dayPeriodValues,
+      defaultWidth: "wide",
+      formattingValues: formattingDayPeriodValues,
+      defaultFormattingWidth: "wide",
+    }),
+  };
+
+  function buildMatchFn(args) {
+    return (string, options = {}) => {
+      const width = options.width;
+
+      const matchPattern =
+        (width && args.matchPatterns[width]) ||
+        args.matchPatterns[args.defaultMatchWidth];
+      const matchResult = string.match(matchPattern);
+
+      if (!matchResult) {
+        return null;
+      }
+      const matchedString = matchResult[0];
+
+      const parsePatterns =
+        (width && args.parsePatterns[width]) ||
+        args.parsePatterns[args.defaultParseWidth];
+
+      const key = Array.isArray(parsePatterns)
+        ? findIndex(parsePatterns, (pattern) => pattern.test(matchedString))
+        : // [TODO] -- I challenge you to fix the type
+          findKey(parsePatterns, (pattern) => pattern.test(matchedString));
+
+      let value;
+
+      value = args.valueCallback ? args.valueCallback(key) : key;
+      value = options.valueCallback
+        ? // [TODO] -- I challenge you to fix the type
+          options.valueCallback(value)
+        : value;
+
+      const rest = string.slice(matchedString.length);
+
+      return { value, rest };
+    };
+  }
+
+  function findKey(object, predicate) {
+    for (const key in object) {
+      if (
+        Object.prototype.hasOwnProperty.call(object, key) &&
+        predicate(object[key])
+      ) {
+        return key;
+      }
+    }
+    return undefined;
+  }
+
+  function findIndex(array, predicate) {
+    for (let key = 0; key < array.length; key++) {
+      if (predicate(array[key])) {
+        return key;
+      }
+    }
+    return undefined;
+  }
+
+  function buildMatchPatternFn(args) {
+    return (string, options = {}) => {
+      const matchResult = string.match(args.matchPattern);
+      if (!matchResult) return null;
+      const matchedString = matchResult[0];
+
+      const parseResult = string.match(args.parsePattern);
+      if (!parseResult) return null;
+      let value = args.valueCallback
+        ? args.valueCallback(parseResult[0])
+        : parseResult[0];
+
+      // [TODO] I challenge you to fix the type
+      value = options.valueCallback ? options.valueCallback(value) : value;
+
+      const rest = string.slice(matchedString.length);
+
+      return { value, rest };
+    };
+  }
+
+  const matchOrdinalNumberPattern = /^(\d+)(th|st|nd|rd)?/i;
+  const parseOrdinalNumberPattern = /\d+/i;
+
+  const matchEraPatterns = {
+    narrow: /^(b|a)/i,
+    abbreviated: /^(b\.?\s?c\.?|b\.?\s?c\.?\s?e\.?|a\.?\s?d\.?|c\.?\s?e\.?)/i,
+    wide: /^(before christ|before common era|anno domini|common era)/i,
+  };
+  const parseEraPatterns = {
+    any: [/^b/i, /^(a|c)/i],
+  };
+
+  const matchQuarterPatterns = {
+    narrow: /^[1234]/i,
+    abbreviated: /^q[1234]/i,
+    wide: /^[1234](th|st|nd|rd)? quarter/i,
+  };
+  const parseQuarterPatterns = {
+    any: [/1/i, /2/i, /3/i, /4/i],
+  };
+
+  const matchMonthPatterns = {
+    narrow: /^[jfmasond]/i,
+    abbreviated: /^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i,
+    wide: /^(january|february|march|april|may|june|july|august|september|october|november|december)/i,
+  };
+  const parseMonthPatterns = {
+    narrow: [
+      /^j/i,
+      /^f/i,
+      /^m/i,
+      /^a/i,
+      /^m/i,
+      /^j/i,
+      /^j/i,
+      /^a/i,
+      /^s/i,
+      /^o/i,
+      /^n/i,
+      /^d/i,
+    ],
+
+    any: [
+      /^ja/i,
+      /^f/i,
+      /^mar/i,
+      /^ap/i,
+      /^may/i,
+      /^jun/i,
+      /^jul/i,
+      /^au/i,
+      /^s/i,
+      /^o/i,
+      /^n/i,
+      /^d/i,
+    ],
+  };
+
+  const matchDayPatterns = {
+    narrow: /^[smtwf]/i,
+    short: /^(su|mo|tu|we|th|fr|sa)/i,
+    abbreviated: /^(sun|mon|tue|wed|thu|fri|sat)/i,
+    wide: /^(sunday|monday|tuesday|wednesday|thursday|friday|saturday)/i,
+  };
+  const parseDayPatterns = {
+    narrow: [/^s/i, /^m/i, /^t/i, /^w/i, /^t/i, /^f/i, /^s/i],
+    any: [/^su/i, /^m/i, /^tu/i, /^w/i, /^th/i, /^f/i, /^sa/i],
+  };
+
+  const matchDayPeriodPatterns = {
+    narrow: /^(a|p|mi|n|(in the|at) (morning|afternoon|evening|night))/i,
+    any: /^([ap]\.?\s?m\.?|midnight|noon|(in the|at) (morning|afternoon|evening|night))/i,
+  };
+  const parseDayPeriodPatterns = {
+    any: {
+      am: /^a/i,
+      pm: /^p/i,
+      midnight: /^mi/i,
+      noon: /^no/i,
+      morning: /morning/i,
+      afternoon: /afternoon/i,
+      evening: /evening/i,
+      night: /night/i,
+    },
+  };
+
+  const match = {
+    ordinalNumber: buildMatchPatternFn({
+      matchPattern: matchOrdinalNumberPattern,
+      parsePattern: parseOrdinalNumberPattern,
+      valueCallback: (value) => parseInt(value, 10),
+    }),
+
+    era: buildMatchFn({
+      matchPatterns: matchEraPatterns,
+      defaultMatchWidth: "wide",
+      parsePatterns: parseEraPatterns,
+      defaultParseWidth: "any",
+    }),
+
+    quarter: buildMatchFn({
+      matchPatterns: matchQuarterPatterns,
+      defaultMatchWidth: "wide",
+      parsePatterns: parseQuarterPatterns,
+      defaultParseWidth: "any",
+      valueCallback: (index) => index + 1,
+    }),
+
+    month: buildMatchFn({
+      matchPatterns: matchMonthPatterns,
+      defaultMatchWidth: "wide",
+      parsePatterns: parseMonthPatterns,
+      defaultParseWidth: "any",
+    }),
+
+    day: buildMatchFn({
+      matchPatterns: matchDayPatterns,
+      defaultMatchWidth: "wide",
+      parsePatterns: parseDayPatterns,
+      defaultParseWidth: "any",
+    }),
+
+    dayPeriod: buildMatchFn({
+      matchPatterns: matchDayPeriodPatterns,
+      defaultMatchWidth: "any",
+      parsePatterns: parseDayPeriodPatterns,
+      defaultParseWidth: "any",
+    }),
+  };
+
+  /**
+   * @category Locales
+   * @summary English locale (United States).
+   * @language English
+   * @iso-639-2 eng
+   * @author Sasha Koss [@kossnocorp](https://github.com/kossnocorp)
+   * @author Lesha Koss [@leshakoss](https://github.com/leshakoss)
+   */
+  const enUS = {
+    code: "en-US",
+    formatDistance: formatDistance,
+    formatLong: formatLong,
+    formatRelative: formatRelative,
+    localize: localize,
+    match: match,
+    options: {
+      weekStartsOn: 0 /* Sunday */,
+      firstWeekContainsDate: 1,
+    },
+  };
+
+  /**
+   * The {@link getDayOfYear} function options.
+   */
+
+  /**
+   * @name getDayOfYear
+   * @category Day Helpers
+   * @summary Get the day of the year of the given date.
+   *
+   * @description
+   * Get the day of the year of the given date.
+   *
+   * @param date - The given date
+   * @param options - The options
+   *
+   * @returns The day of year
+   *
+   * @example
+   * // Which day of the year is 2 July 2014?
+   * const result = getDayOfYear(new Date(2014, 6, 2))
+   * //=> 183
+   */
+  function getDayOfYear(date, options) {
+    const _date = toDate(date, options?.in);
+    const diff = differenceInCalendarDays(_date, startOfYear(_date));
+    const dayOfYear = diff + 1;
+    return dayOfYear;
+  }
+
+  /**
+   * The {@link getISOWeek} function options.
+   */
+
+  /**
+   * @name getISOWeek
+   * @category ISO Week Helpers
+   * @summary Get the ISO week of the given date.
+   *
+   * @description
+   * Get the ISO week of the given date.
+   *
+   * ISO week-numbering year: http://en.wikipedia.org/wiki/ISO_week_date
+   *
+   * @param date - The given date
+   * @param options - The options
+   *
+   * @returns The ISO week
+   *
+   * @example
+   * // Which week of the ISO-week numbering year is 2 January 2005?
+   * const result = getISOWeek(new Date(2005, 0, 2))
+   * //=> 53
+   */
+  function getISOWeek(date, options) {
+    const _date = toDate(date, options?.in);
+    const diff = +startOfISOWeek(_date) - +startOfISOWeekYear(_date);
+
+    // Round the number of weeks to the nearest integer because the number of
+    // milliseconds in a week is not constant (e.g. it's different in the week of
+    // the daylight saving time clock shift).
+    return Math.round(diff / millisecondsInWeek) + 1;
+  }
+
+  /**
+   * The {@link getWeekYear} function options.
+   */
+
+  /**
+   * @name getWeekYear
+   * @category Week-Numbering Year Helpers
+   * @summary Get the local week-numbering year of the given date.
+   *
+   * @description
+   * Get the local week-numbering year of the given date.
+   * The exact calculation depends on the values of
+   * `options.weekStartsOn` (which is the index of the first day of the week)
+   * and `options.firstWeekContainsDate` (which is the day of January, which is always in
+   * the first week of the week-numbering year)
+   *
+   * Week numbering: https://en.wikipedia.org/wiki/Week#The_ISO_week_date_system
+   *
+   * @param date - The given date
+   * @param options - An object with options.
+   *
+   * @returns The local week-numbering year
+   *
+   * @example
+   * // Which week numbering year is 26 December 2004 with the default settings?
+   * const result = getWeekYear(new Date(2004, 11, 26))
+   * //=> 2005
+   *
+   * @example
+   * // Which week numbering year is 26 December 2004 if week starts on Saturday?
+   * const result = getWeekYear(new Date(2004, 11, 26), { weekStartsOn: 6 })
+   * //=> 2004
+   *
+   * @example
+   * // Which week numbering year is 26 December 2004 if the first week contains 4 January?
+   * const result = getWeekYear(new Date(2004, 11, 26), { firstWeekContainsDate: 4 })
+   * //=> 2004
+   */
+  function getWeekYear(date, options) {
+    const _date = toDate(date, options?.in);
+    const year = _date.getFullYear();
+
+    const defaultOptions = getDefaultOptions$1();
+    const firstWeekContainsDate =
+      options?.firstWeekContainsDate ??
+      options?.locale?.options?.firstWeekContainsDate ??
+      defaultOptions.firstWeekContainsDate ??
+      defaultOptions.locale?.options?.firstWeekContainsDate ??
+      1;
+
+    const firstWeekOfNextYear = constructFrom(options?.in || date, 0);
+    firstWeekOfNextYear.setFullYear(year + 1, 0, firstWeekContainsDate);
+    firstWeekOfNextYear.setHours(0, 0, 0, 0);
+    const startOfNextYear = startOfWeek(firstWeekOfNextYear, options);
+
+    const firstWeekOfThisYear = constructFrom(options?.in || date, 0);
+    firstWeekOfThisYear.setFullYear(year, 0, firstWeekContainsDate);
+    firstWeekOfThisYear.setHours(0, 0, 0, 0);
+    const startOfThisYear = startOfWeek(firstWeekOfThisYear, options);
+
+    if (+_date >= +startOfNextYear) {
+      return year + 1;
+    } else if (+_date >= +startOfThisYear) {
+      return year;
+    } else {
+      return year - 1;
+    }
+  }
+
+  /**
+   * The {@link startOfWeekYear} function options.
+   */
+
+  /**
+   * @name startOfWeekYear
+   * @category Week-Numbering Year Helpers
+   * @summary Return the start of a local week-numbering year for the given date.
+   *
+   * @description
+   * Return the start of a local week-numbering year.
+   * The exact calculation depends on the values of
+   * `options.weekStartsOn` (which is the index of the first day of the week)
+   * and `options.firstWeekContainsDate` (which is the day of January, which is always in
+   * the first week of the week-numbering year)
+   *
+   * Week numbering: https://en.wikipedia.org/wiki/Week#The_ISO_week_date_system
+   *
+   * @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+   * @typeParam ResultDate - The result `Date` type.
+   *
+   * @param date - The original date
+   * @param options - An object with options
+   *
+   * @returns The start of a week-numbering year
+   *
+   * @example
+   * // The start of an a week-numbering year for 2 July 2005 with default settings:
+   * const result = startOfWeekYear(new Date(2005, 6, 2))
+   * //=> Sun Dec 26 2004 00:00:00
+   *
+   * @example
+   * // The start of a week-numbering year for 2 July 2005
+   * // if Monday is the first day of week
+   * // and 4 January is always in the first week of the year:
+   * const result = startOfWeekYear(new Date(2005, 6, 2), {
+   *   weekStartsOn: 1,
+   *   firstWeekContainsDate: 4
+   * })
+   * //=> Mon Jan 03 2005 00:00:00
+   */
+  function startOfWeekYear(date, options) {
+    const defaultOptions = getDefaultOptions$1();
+    const firstWeekContainsDate =
+      options?.firstWeekContainsDate ??
+      options?.locale?.options?.firstWeekContainsDate ??
+      defaultOptions.firstWeekContainsDate ??
+      defaultOptions.locale?.options?.firstWeekContainsDate ??
+      1;
+
+    const year = getWeekYear(date, options);
+    const firstWeek = constructFrom(options?.in || date, 0);
+    firstWeek.setFullYear(year, 0, firstWeekContainsDate);
+    firstWeek.setHours(0, 0, 0, 0);
+    const _date = startOfWeek(firstWeek, options);
+    return _date;
+  }
+
+  /**
+   * The {@link getWeek} function options.
+   */
+
+  /**
+   * @name getWeek
+   * @category Week Helpers
+   * @summary Get the local week index of the given date.
+   *
+   * @description
+   * Get the local week index of the given date.
+   * The exact calculation depends on the values of
+   * `options.weekStartsOn` (which is the index of the first day of the week)
+   * and `options.firstWeekContainsDate` (which is the day of January, which is always in
+   * the first week of the week-numbering year)
+   *
+   * Week numbering: https://en.wikipedia.org/wiki/Week#The_ISO_week_date_system
+   *
+   * @param date - The given date
+   * @param options - An object with options
+   *
+   * @returns The week
+   *
+   * @example
+   * // Which week of the local week numbering year is 2 January 2005 with default options?
+   * const result = getWeek(new Date(2005, 0, 2))
+   * //=> 2
+   *
+   * @example
+   * // Which week of the local week numbering year is 2 January 2005,
+   * // if Monday is the first day of the week,
+   * // and the first week of the year always contains 4 January?
+   * const result = getWeek(new Date(2005, 0, 2), {
+   *   weekStartsOn: 1,
+   *   firstWeekContainsDate: 4
+   * })
+   * //=> 53
+   */
+  function getWeek(date, options) {
+    const _date = toDate(date, options?.in);
+    const diff = +startOfWeek(_date, options) - +startOfWeekYear(_date, options);
+
+    // Round the number of weeks to the nearest integer because the number of
+    // milliseconds in a week is not constant (e.g. it's different in the week of
+    // the daylight saving time clock shift).
+    return Math.round(diff / millisecondsInWeek) + 1;
+  }
+
+  function addLeadingZeros(number, targetLength) {
+    const sign = number < 0 ? "-" : "";
+    const output = Math.abs(number).toString().padStart(targetLength, "0");
+    return sign + output;
+  }
+
+  /*
+   * |     | Unit                           |     | Unit                           |
+   * |-----|--------------------------------|-----|--------------------------------|
+   * |  a  | AM, PM                         |  A* |                                |
+   * |  d  | Day of month                   |  D  |                                |
+   * |  h  | Hour [1-12]                    |  H  | Hour [0-23]                    |
+   * |  m  | Minute                         |  M  | Month                          |
+   * |  s  | Second                         |  S  | Fraction of second             |
+   * |  y  | Year (abs)                     |  Y  |                                |
+   *
+   * Letters marked by * are not implemented but reserved by Unicode standard.
+   */
+
+  const lightFormatters = {
+    // Year
+    y(date, token) {
+      // From http://www.unicode.org/reports/tr35/tr35-31/tr35-dates.html#Date_Format_tokens
+      // | Year     |     y | yy |   yyy |  yyyy | yyyyy |
+      // |----------|-------|----|-------|-------|-------|
+      // | AD 1     |     1 | 01 |   001 |  0001 | 00001 |
+      // | AD 12    |    12 | 12 |   012 |  0012 | 00012 |
+      // | AD 123   |   123 | 23 |   123 |  0123 | 00123 |
+      // | AD 1234  |  1234 | 34 |  1234 |  1234 | 01234 |
+      // | AD 12345 | 12345 | 45 | 12345 | 12345 | 12345 |
+
+      const signedYear = date.getFullYear();
+      // Returns 1 for 1 BC (which is year 0 in JavaScript)
+      const year = signedYear > 0 ? signedYear : 1 - signedYear;
+      return addLeadingZeros(token === "yy" ? year % 100 : year, token.length);
+    },
+
+    // Month
+    M(date, token) {
+      const month = date.getMonth();
+      return token === "M" ? String(month + 1) : addLeadingZeros(month + 1, 2);
+    },
+
+    // Day of the month
+    d(date, token) {
+      return addLeadingZeros(date.getDate(), token.length);
+    },
+
+    // AM or PM
+    a(date, token) {
+      const dayPeriodEnumValue = date.getHours() / 12 >= 1 ? "pm" : "am";
+
+      switch (token) {
+        case "a":
+        case "aa":
+          return dayPeriodEnumValue.toUpperCase();
+        case "aaa":
+          return dayPeriodEnumValue;
+        case "aaaaa":
+          return dayPeriodEnumValue[0];
+        case "aaaa":
+        default:
+          return dayPeriodEnumValue === "am" ? "a.m." : "p.m.";
+      }
+    },
+
+    // Hour [1-12]
+    h(date, token) {
+      return addLeadingZeros(date.getHours() % 12 || 12, token.length);
+    },
+
+    // Hour [0-23]
+    H(date, token) {
+      return addLeadingZeros(date.getHours(), token.length);
+    },
+
+    // Minute
+    m(date, token) {
+      return addLeadingZeros(date.getMinutes(), token.length);
+    },
+
+    // Second
+    s(date, token) {
+      return addLeadingZeros(date.getSeconds(), token.length);
+    },
+
+    // Fraction of second
+    S(date, token) {
+      const numberOfDigits = token.length;
+      const milliseconds = date.getMilliseconds();
+      const fractionalSeconds = Math.trunc(
+        milliseconds * Math.pow(10, numberOfDigits - 3),
+      );
+      return addLeadingZeros(fractionalSeconds, token.length);
+    },
+  };
+
+  const dayPeriodEnum = {
+    am: "am",
+    pm: "pm",
+    midnight: "midnight",
+    noon: "noon",
+    morning: "morning",
+    afternoon: "afternoon",
+    evening: "evening",
+    night: "night",
+  };
+
+  /*
+   * |     | Unit                           |     | Unit                           |
+   * |-----|--------------------------------|-----|--------------------------------|
+   * |  a  | AM, PM                         |  A* | Milliseconds in day            |
+   * |  b  | AM, PM, noon, midnight         |  B  | Flexible day period            |
+   * |  c  | Stand-alone local day of week  |  C* | Localized hour w/ day period   |
+   * |  d  | Day of month                   |  D  | Day of year                    |
+   * |  e  | Local day of week              |  E  | Day of week                    |
+   * |  f  |                                |  F* | Day of week in month           |
+   * |  g* | Modified Julian day            |  G  | Era                            |
+   * |  h  | Hour [1-12]                    |  H  | Hour [0-23]                    |
+   * |  i! | ISO day of week                |  I! | ISO week of year               |
+   * |  j* | Localized hour w/ day period   |  J* | Localized hour w/o day period  |
+   * |  k  | Hour [1-24]                    |  K  | Hour [0-11]                    |
+   * |  l* | (deprecated)                   |  L  | Stand-alone month              |
+   * |  m  | Minute                         |  M  | Month                          |
+   * |  n  |                                |  N  |                                |
+   * |  o! | Ordinal number modifier        |  O  | Timezone (GMT)                 |
+   * |  p! | Long localized time            |  P! | Long localized date            |
+   * |  q  | Stand-alone quarter            |  Q  | Quarter                        |
+   * |  r* | Related Gregorian year         |  R! | ISO week-numbering year        |
+   * |  s  | Second                         |  S  | Fraction of second             |
+   * |  t! | Seconds timestamp              |  T! | Milliseconds timestamp         |
+   * |  u  | Extended year                  |  U* | Cyclic year                    |
+   * |  v* | Timezone (generic non-locat.)  |  V* | Timezone (location)            |
+   * |  w  | Local week of year             |  W* | Week of month                  |
+   * |  x  | Timezone (ISO-8601 w/o Z)      |  X  | Timezone (ISO-8601)            |
+   * |  y  | Year (abs)                     |  Y  | Local week-numbering year      |
+   * |  z  | Timezone (specific non-locat.) |  Z* | Timezone (aliases)             |
+   *
+   * Letters marked by * are not implemented but reserved by Unicode standard.
+   *
+   * Letters marked by ! are non-standard, but implemented by date-fns:
+   * - `o` modifies the previous token to turn it into an ordinal (see `format` docs)
+   * - `i` is ISO day of week. For `i` and `ii` is returns numeric ISO week days,
+   *   i.e. 7 for Sunday, 1 for Monday, etc.
+   * - `I` is ISO week of year, as opposed to `w` which is local week of year.
+   * - `R` is ISO week-numbering year, as opposed to `Y` which is local week-numbering year.
+   *   `R` is supposed to be used in conjunction with `I` and `i`
+   *   for universal ISO week-numbering date, whereas
+   *   `Y` is supposed to be used in conjunction with `w` and `e`
+   *   for week-numbering date specific to the locale.
+   * - `P` is long localized date format
+   * - `p` is long localized time format
+   */
+
+  const formatters = {
+    // Era
+    G: function (date, token, localize) {
+      const era = date.getFullYear() > 0 ? 1 : 0;
+      switch (token) {
+        // AD, BC
+        case "G":
+        case "GG":
+        case "GGG":
+          return localize.era(era, { width: "abbreviated" });
+        // A, B
+        case "GGGGG":
+          return localize.era(era, { width: "narrow" });
+        // Anno Domini, Before Christ
+        case "GGGG":
+        default:
+          return localize.era(era, { width: "wide" });
+      }
+    },
+
+    // Year
+    y: function (date, token, localize) {
+      // Ordinal number
+      if (token === "yo") {
+        const signedYear = date.getFullYear();
+        // Returns 1 for 1 BC (which is year 0 in JavaScript)
+        const year = signedYear > 0 ? signedYear : 1 - signedYear;
+        return localize.ordinalNumber(year, { unit: "year" });
+      }
+
+      return lightFormatters.y(date, token);
+    },
+
+    // Local week-numbering year
+    Y: function (date, token, localize, options) {
+      const signedWeekYear = getWeekYear(date, options);
+      // Returns 1 for 1 BC (which is year 0 in JavaScript)
+      const weekYear = signedWeekYear > 0 ? signedWeekYear : 1 - signedWeekYear;
+
+      // Two digit year
+      if (token === "YY") {
+        const twoDigitYear = weekYear % 100;
+        return addLeadingZeros(twoDigitYear, 2);
+      }
+
+      // Ordinal number
+      if (token === "Yo") {
+        return localize.ordinalNumber(weekYear, { unit: "year" });
+      }
+
+      // Padding
+      return addLeadingZeros(weekYear, token.length);
+    },
+
+    // ISO week-numbering year
+    R: function (date, token) {
+      const isoWeekYear = getISOWeekYear(date);
+
+      // Padding
+      return addLeadingZeros(isoWeekYear, token.length);
+    },
+
+    // Extended year. This is a single number designating the year of this calendar system.
+    // The main difference between `y` and `u` localizers are B.C. years:
+    // | Year | `y` | `u` |
+    // |------|-----|-----|
+    // | AC 1 |   1 |   1 |
+    // | BC 1 |   1 |   0 |
+    // | BC 2 |   2 |  -1 |
+    // Also `yy` always returns the last two digits of a year,
+    // while `uu` pads single digit years to 2 characters and returns other years unchanged.
+    u: function (date, token) {
+      const year = date.getFullYear();
+      return addLeadingZeros(year, token.length);
+    },
+
+    // Quarter
+    Q: function (date, token, localize) {
+      const quarter = Math.ceil((date.getMonth() + 1) / 3);
+      switch (token) {
+        // 1, 2, 3, 4
+        case "Q":
+          return String(quarter);
+        // 01, 02, 03, 04
+        case "QQ":
+          return addLeadingZeros(quarter, 2);
+        // 1st, 2nd, 3rd, 4th
+        case "Qo":
+          return localize.ordinalNumber(quarter, { unit: "quarter" });
+        // Q1, Q2, Q3, Q4
+        case "QQQ":
+          return localize.quarter(quarter, {
+            width: "abbreviated",
+            context: "formatting",
+          });
+        // 1, 2, 3, 4 (narrow quarter; could be not numerical)
+        case "QQQQQ":
+          return localize.quarter(quarter, {
+            width: "narrow",
+            context: "formatting",
+          });
+        // 1st quarter, 2nd quarter, ...
+        case "QQQQ":
+        default:
+          return localize.quarter(quarter, {
+            width: "wide",
+            context: "formatting",
+          });
+      }
+    },
+
+    // Stand-alone quarter
+    q: function (date, token, localize) {
+      const quarter = Math.ceil((date.getMonth() + 1) / 3);
+      switch (token) {
+        // 1, 2, 3, 4
+        case "q":
+          return String(quarter);
+        // 01, 02, 03, 04
+        case "qq":
+          return addLeadingZeros(quarter, 2);
+        // 1st, 2nd, 3rd, 4th
+        case "qo":
+          return localize.ordinalNumber(quarter, { unit: "quarter" });
+        // Q1, Q2, Q3, Q4
+        case "qqq":
+          return localize.quarter(quarter, {
+            width: "abbreviated",
+            context: "standalone",
+          });
+        // 1, 2, 3, 4 (narrow quarter; could be not numerical)
+        case "qqqqq":
+          return localize.quarter(quarter, {
+            width: "narrow",
+            context: "standalone",
+          });
+        // 1st quarter, 2nd quarter, ...
+        case "qqqq":
+        default:
+          return localize.quarter(quarter, {
+            width: "wide",
+            context: "standalone",
+          });
+      }
+    },
+
+    // Month
+    M: function (date, token, localize) {
+      const month = date.getMonth();
+      switch (token) {
+        case "M":
+        case "MM":
+          return lightFormatters.M(date, token);
+        // 1st, 2nd, ..., 12th
+        case "Mo":
+          return localize.ordinalNumber(month + 1, { unit: "month" });
+        // Jan, Feb, ..., Dec
+        case "MMM":
+          return localize.month(month, {
+            width: "abbreviated",
+            context: "formatting",
+          });
+        // J, F, ..., D
+        case "MMMMM":
+          return localize.month(month, {
+            width: "narrow",
+            context: "formatting",
+          });
+        // January, February, ..., December
+        case "MMMM":
+        default:
+          return localize.month(month, { width: "wide", context: "formatting" });
+      }
+    },
+
+    // Stand-alone month
+    L: function (date, token, localize) {
+      const month = date.getMonth();
+      switch (token) {
+        // 1, 2, ..., 12
+        case "L":
+          return String(month + 1);
+        // 01, 02, ..., 12
+        case "LL":
+          return addLeadingZeros(month + 1, 2);
+        // 1st, 2nd, ..., 12th
+        case "Lo":
+          return localize.ordinalNumber(month + 1, { unit: "month" });
+        // Jan, Feb, ..., Dec
+        case "LLL":
+          return localize.month(month, {
+            width: "abbreviated",
+            context: "standalone",
+          });
+        // J, F, ..., D
+        case "LLLLL":
+          return localize.month(month, {
+            width: "narrow",
+            context: "standalone",
+          });
+        // January, February, ..., December
+        case "LLLL":
+        default:
+          return localize.month(month, { width: "wide", context: "standalone" });
+      }
+    },
+
+    // Local week of year
+    w: function (date, token, localize, options) {
+      const week = getWeek(date, options);
+
+      if (token === "wo") {
+        return localize.ordinalNumber(week, { unit: "week" });
+      }
+
+      return addLeadingZeros(week, token.length);
+    },
+
+    // ISO week of year
+    I: function (date, token, localize) {
+      const isoWeek = getISOWeek(date);
+
+      if (token === "Io") {
+        return localize.ordinalNumber(isoWeek, { unit: "week" });
+      }
+
+      return addLeadingZeros(isoWeek, token.length);
+    },
+
+    // Day of the month
+    d: function (date, token, localize) {
+      if (token === "do") {
+        return localize.ordinalNumber(date.getDate(), { unit: "date" });
+      }
+
+      return lightFormatters.d(date, token);
+    },
+
+    // Day of year
+    D: function (date, token, localize) {
+      const dayOfYear = getDayOfYear(date);
+
+      if (token === "Do") {
+        return localize.ordinalNumber(dayOfYear, { unit: "dayOfYear" });
+      }
+
+      return addLeadingZeros(dayOfYear, token.length);
+    },
+
+    // Day of week
+    E: function (date, token, localize) {
+      const dayOfWeek = date.getDay();
+      switch (token) {
+        // Tue
+        case "E":
+        case "EE":
+        case "EEE":
+          return localize.day(dayOfWeek, {
+            width: "abbreviated",
+            context: "formatting",
+          });
+        // T
+        case "EEEEE":
+          return localize.day(dayOfWeek, {
+            width: "narrow",
+            context: "formatting",
+          });
+        // Tu
+        case "EEEEEE":
+          return localize.day(dayOfWeek, {
+            width: "short",
+            context: "formatting",
+          });
+        // Tuesday
+        case "EEEE":
+        default:
+          return localize.day(dayOfWeek, {
+            width: "wide",
+            context: "formatting",
+          });
+      }
+    },
+
+    // Local day of week
+    e: function (date, token, localize, options) {
+      const dayOfWeek = date.getDay();
+      const localDayOfWeek = (dayOfWeek - options.weekStartsOn + 8) % 7 || 7;
+      switch (token) {
+        // Numerical value (Nth day of week with current locale or weekStartsOn)
+        case "e":
+          return String(localDayOfWeek);
+        // Padded numerical value
+        case "ee":
+          return addLeadingZeros(localDayOfWeek, 2);
+        // 1st, 2nd, ..., 7th
+        case "eo":
+          return localize.ordinalNumber(localDayOfWeek, { unit: "day" });
+        case "eee":
+          return localize.day(dayOfWeek, {
+            width: "abbreviated",
+            context: "formatting",
+          });
+        // T
+        case "eeeee":
+          return localize.day(dayOfWeek, {
+            width: "narrow",
+            context: "formatting",
+          });
+        // Tu
+        case "eeeeee":
+          return localize.day(dayOfWeek, {
+            width: "short",
+            context: "formatting",
+          });
+        // Tuesday
+        case "eeee":
+        default:
+          return localize.day(dayOfWeek, {
+            width: "wide",
+            context: "formatting",
+          });
+      }
+    },
+
+    // Stand-alone local day of week
+    c: function (date, token, localize, options) {
+      const dayOfWeek = date.getDay();
+      const localDayOfWeek = (dayOfWeek - options.weekStartsOn + 8) % 7 || 7;
+      switch (token) {
+        // Numerical value (same as in `e`)
+        case "c":
+          return String(localDayOfWeek);
+        // Padded numerical value
+        case "cc":
+          return addLeadingZeros(localDayOfWeek, token.length);
+        // 1st, 2nd, ..., 7th
+        case "co":
+          return localize.ordinalNumber(localDayOfWeek, { unit: "day" });
+        case "ccc":
+          return localize.day(dayOfWeek, {
+            width: "abbreviated",
+            context: "standalone",
+          });
+        // T
+        case "ccccc":
+          return localize.day(dayOfWeek, {
+            width: "narrow",
+            context: "standalone",
+          });
+        // Tu
+        case "cccccc":
+          return localize.day(dayOfWeek, {
+            width: "short",
+            context: "standalone",
+          });
+        // Tuesday
+        case "cccc":
+        default:
+          return localize.day(dayOfWeek, {
+            width: "wide",
+            context: "standalone",
+          });
+      }
+    },
+
+    // ISO day of week
+    i: function (date, token, localize) {
+      const dayOfWeek = date.getDay();
+      const isoDayOfWeek = dayOfWeek === 0 ? 7 : dayOfWeek;
+      switch (token) {
+        // 2
+        case "i":
+          return String(isoDayOfWeek);
+        // 02
+        case "ii":
+          return addLeadingZeros(isoDayOfWeek, token.length);
+        // 2nd
+        case "io":
+          return localize.ordinalNumber(isoDayOfWeek, { unit: "day" });
+        // Tue
+        case "iii":
+          return localize.day(dayOfWeek, {
+            width: "abbreviated",
+            context: "formatting",
+          });
+        // T
+        case "iiiii":
+          return localize.day(dayOfWeek, {
+            width: "narrow",
+            context: "formatting",
+          });
+        // Tu
+        case "iiiiii":
+          return localize.day(dayOfWeek, {
+            width: "short",
+            context: "formatting",
+          });
+        // Tuesday
+        case "iiii":
+        default:
+          return localize.day(dayOfWeek, {
+            width: "wide",
+            context: "formatting",
+          });
+      }
+    },
+
+    // AM or PM
+    a: function (date, token, localize) {
+      const hours = date.getHours();
+      const dayPeriodEnumValue = hours / 12 >= 1 ? "pm" : "am";
+
+      switch (token) {
+        case "a":
+        case "aa":
+          return localize.dayPeriod(dayPeriodEnumValue, {
+            width: "abbreviated",
+            context: "formatting",
+          });
+        case "aaa":
+          return localize
+            .dayPeriod(dayPeriodEnumValue, {
+              width: "abbreviated",
+              context: "formatting",
+            })
+            .toLowerCase();
+        case "aaaaa":
+          return localize.dayPeriod(dayPeriodEnumValue, {
+            width: "narrow",
+            context: "formatting",
+          });
+        case "aaaa":
+        default:
+          return localize.dayPeriod(dayPeriodEnumValue, {
+            width: "wide",
+            context: "formatting",
+          });
+      }
+    },
+
+    // AM, PM, midnight, noon
+    b: function (date, token, localize) {
+      const hours = date.getHours();
+      let dayPeriodEnumValue;
+      if (hours === 12) {
+        dayPeriodEnumValue = dayPeriodEnum.noon;
+      } else if (hours === 0) {
+        dayPeriodEnumValue = dayPeriodEnum.midnight;
+      } else {
+        dayPeriodEnumValue = hours / 12 >= 1 ? "pm" : "am";
+      }
+
+      switch (token) {
+        case "b":
+        case "bb":
+          return localize.dayPeriod(dayPeriodEnumValue, {
+            width: "abbreviated",
+            context: "formatting",
+          });
+        case "bbb":
+          return localize
+            .dayPeriod(dayPeriodEnumValue, {
+              width: "abbreviated",
+              context: "formatting",
+            })
+            .toLowerCase();
+        case "bbbbb":
+          return localize.dayPeriod(dayPeriodEnumValue, {
+            width: "narrow",
+            context: "formatting",
+          });
+        case "bbbb":
+        default:
+          return localize.dayPeriod(dayPeriodEnumValue, {
+            width: "wide",
+            context: "formatting",
+          });
+      }
+    },
+
+    // in the morning, in the afternoon, in the evening, at night
+    B: function (date, token, localize) {
+      const hours = date.getHours();
+      let dayPeriodEnumValue;
+      if (hours >= 17) {
+        dayPeriodEnumValue = dayPeriodEnum.evening;
+      } else if (hours >= 12) {
+        dayPeriodEnumValue = dayPeriodEnum.afternoon;
+      } else if (hours >= 4) {
+        dayPeriodEnumValue = dayPeriodEnum.morning;
+      } else {
+        dayPeriodEnumValue = dayPeriodEnum.night;
+      }
+
+      switch (token) {
+        case "B":
+        case "BB":
+        case "BBB":
+          return localize.dayPeriod(dayPeriodEnumValue, {
+            width: "abbreviated",
+            context: "formatting",
+          });
+        case "BBBBB":
+          return localize.dayPeriod(dayPeriodEnumValue, {
+            width: "narrow",
+            context: "formatting",
+          });
+        case "BBBB":
+        default:
+          return localize.dayPeriod(dayPeriodEnumValue, {
+            width: "wide",
+            context: "formatting",
+          });
+      }
+    },
+
+    // Hour [1-12]
+    h: function (date, token, localize) {
+      if (token === "ho") {
+        let hours = date.getHours() % 12;
+        if (hours === 0) hours = 12;
+        return localize.ordinalNumber(hours, { unit: "hour" });
+      }
+
+      return lightFormatters.h(date, token);
+    },
+
+    // Hour [0-23]
+    H: function (date, token, localize) {
+      if (token === "Ho") {
+        return localize.ordinalNumber(date.getHours(), { unit: "hour" });
+      }
+
+      return lightFormatters.H(date, token);
+    },
+
+    // Hour [0-11]
+    K: function (date, token, localize) {
+      const hours = date.getHours() % 12;
+
+      if (token === "Ko") {
+        return localize.ordinalNumber(hours, { unit: "hour" });
+      }
+
+      return addLeadingZeros(hours, token.length);
+    },
+
+    // Hour [1-24]
+    k: function (date, token, localize) {
+      let hours = date.getHours();
+      if (hours === 0) hours = 24;
+
+      if (token === "ko") {
+        return localize.ordinalNumber(hours, { unit: "hour" });
+      }
+
+      return addLeadingZeros(hours, token.length);
+    },
+
+    // Minute
+    m: function (date, token, localize) {
+      if (token === "mo") {
+        return localize.ordinalNumber(date.getMinutes(), { unit: "minute" });
+      }
+
+      return lightFormatters.m(date, token);
+    },
+
+    // Second
+    s: function (date, token, localize) {
+      if (token === "so") {
+        return localize.ordinalNumber(date.getSeconds(), { unit: "second" });
+      }
+
+      return lightFormatters.s(date, token);
+    },
+
+    // Fraction of second
+    S: function (date, token) {
+      return lightFormatters.S(date, token);
+    },
+
+    // Timezone (ISO-8601. If offset is 0, output is always `'Z'`)
+    X: function (date, token, _localize) {
+      const timezoneOffset = date.getTimezoneOffset();
+
+      if (timezoneOffset === 0) {
+        return "Z";
+      }
+
+      switch (token) {
+        // Hours and optional minutes
+        case "X":
+          return formatTimezoneWithOptionalMinutes(timezoneOffset);
+
+        // Hours, minutes and optional seconds without `:` delimiter
+        // Note: neither ISO-8601 nor JavaScript supports seconds in timezone offsets
+        // so this token always has the same output as `XX`
+        case "XXXX":
+        case "XX": // Hours and minutes without `:` delimiter
+          return formatTimezone(timezoneOffset);
+
+        // Hours, minutes and optional seconds with `:` delimiter
+        // Note: neither ISO-8601 nor JavaScript supports seconds in timezone offsets
+        // so this token always has the same output as `XXX`
+        case "XXXXX":
+        case "XXX": // Hours and minutes with `:` delimiter
+        default:
+          return formatTimezone(timezoneOffset, ":");
+      }
+    },
+
+    // Timezone (ISO-8601. If offset is 0, output is `'+00:00'` or equivalent)
+    x: function (date, token, _localize) {
+      const timezoneOffset = date.getTimezoneOffset();
+
+      switch (token) {
+        // Hours and optional minutes
+        case "x":
+          return formatTimezoneWithOptionalMinutes(timezoneOffset);
+
+        // Hours, minutes and optional seconds without `:` delimiter
+        // Note: neither ISO-8601 nor JavaScript supports seconds in timezone offsets
+        // so this token always has the same output as `xx`
+        case "xxxx":
+        case "xx": // Hours and minutes without `:` delimiter
+          return formatTimezone(timezoneOffset);
+
+        // Hours, minutes and optional seconds with `:` delimiter
+        // Note: neither ISO-8601 nor JavaScript supports seconds in timezone offsets
+        // so this token always has the same output as `xxx`
+        case "xxxxx":
+        case "xxx": // Hours and minutes with `:` delimiter
+        default:
+          return formatTimezone(timezoneOffset, ":");
+      }
+    },
+
+    // Timezone (GMT)
+    O: function (date, token, _localize) {
+      const timezoneOffset = date.getTimezoneOffset();
+
+      switch (token) {
+        // Short
+        case "O":
+        case "OO":
+        case "OOO":
+          return "GMT" + formatTimezoneShort(timezoneOffset, ":");
+        // Long
+        case "OOOO":
+        default:
+          return "GMT" + formatTimezone(timezoneOffset, ":");
+      }
+    },
+
+    // Timezone (specific non-location)
+    z: function (date, token, _localize) {
+      const timezoneOffset = date.getTimezoneOffset();
+
+      switch (token) {
+        // Short
+        case "z":
+        case "zz":
+        case "zzz":
+          return "GMT" + formatTimezoneShort(timezoneOffset, ":");
+        // Long
+        case "zzzz":
+        default:
+          return "GMT" + formatTimezone(timezoneOffset, ":");
+      }
+    },
+
+    // Seconds timestamp
+    t: function (date, token, _localize) {
+      const timestamp = Math.trunc(+date / 1000);
+      return addLeadingZeros(timestamp, token.length);
+    },
+
+    // Milliseconds timestamp
+    T: function (date, token, _localize) {
+      return addLeadingZeros(+date, token.length);
+    },
+  };
+
+  function formatTimezoneShort(offset, delimiter = "") {
+    const sign = offset > 0 ? "-" : "+";
+    const absOffset = Math.abs(offset);
+    const hours = Math.trunc(absOffset / 60);
+    const minutes = absOffset % 60;
+    if (minutes === 0) {
+      return sign + String(hours);
+    }
+    return sign + String(hours) + delimiter + addLeadingZeros(minutes, 2);
+  }
+
+  function formatTimezoneWithOptionalMinutes(offset, delimiter) {
+    if (offset % 60 === 0) {
+      const sign = offset > 0 ? "-" : "+";
+      return sign + addLeadingZeros(Math.abs(offset) / 60, 2);
+    }
+    return formatTimezone(offset, delimiter);
+  }
+
+  function formatTimezone(offset, delimiter = "") {
+    const sign = offset > 0 ? "-" : "+";
+    const absOffset = Math.abs(offset);
+    const hours = addLeadingZeros(Math.trunc(absOffset / 60), 2);
+    const minutes = addLeadingZeros(absOffset % 60, 2);
+    return sign + hours + delimiter + minutes;
+  }
+
+  const dateLongFormatter = (pattern, formatLong) => {
+    switch (pattern) {
+      case "P":
+        return formatLong.date({ width: "short" });
+      case "PP":
+        return formatLong.date({ width: "medium" });
+      case "PPP":
+        return formatLong.date({ width: "long" });
+      case "PPPP":
+      default:
+        return formatLong.date({ width: "full" });
+    }
+  };
+
+  const timeLongFormatter = (pattern, formatLong) => {
+    switch (pattern) {
+      case "p":
+        return formatLong.time({ width: "short" });
+      case "pp":
+        return formatLong.time({ width: "medium" });
+      case "ppp":
+        return formatLong.time({ width: "long" });
+      case "pppp":
+      default:
+        return formatLong.time({ width: "full" });
+    }
+  };
+
+  const dateTimeLongFormatter = (pattern, formatLong) => {
+    const matchResult = pattern.match(/(P+)(p+)?/) || [];
+    const datePattern = matchResult[1];
+    const timePattern = matchResult[2];
+
+    if (!timePattern) {
+      return dateLongFormatter(pattern, formatLong);
+    }
+
+    let dateTimeFormat;
+
+    switch (datePattern) {
+      case "P":
+        dateTimeFormat = formatLong.dateTime({ width: "short" });
+        break;
+      case "PP":
+        dateTimeFormat = formatLong.dateTime({ width: "medium" });
+        break;
+      case "PPP":
+        dateTimeFormat = formatLong.dateTime({ width: "long" });
+        break;
+      case "PPPP":
+      default:
+        dateTimeFormat = formatLong.dateTime({ width: "full" });
+        break;
+    }
+
+    return dateTimeFormat
+      .replace("{{date}}", dateLongFormatter(datePattern, formatLong))
+      .replace("{{time}}", timeLongFormatter(timePattern, formatLong));
+  };
+
+  const longFormatters = {
+    p: timeLongFormatter,
+    P: dateTimeLongFormatter,
+  };
+
+  const dayOfYearTokenRE = /^D+$/;
+  const weekYearTokenRE = /^Y+$/;
+
+  const throwTokens = ["D", "DD", "YY", "YYYY"];
+
+  function isProtectedDayOfYearToken(token) {
+    return dayOfYearTokenRE.test(token);
+  }
+
+  function isProtectedWeekYearToken(token) {
+    return weekYearTokenRE.test(token);
+  }
+
+  function warnOrThrowProtectedError(token, format, input) {
+    const _message = message(token, format, input);
+    console.warn(_message);
+    if (throwTokens.includes(token)) throw new RangeError(_message);
+  }
+
+  function message(token, format, input) {
+    const subject = token[0] === "Y" ? "years" : "days of the month";
+    return `Use \`${token.toLowerCase()}\` instead of \`${token}\` (in \`${format}\`) for formatting ${subject} to the input \`${input}\`; see: https://github.com/date-fns/date-fns/blob/master/docs/unicodeTokens.md`;
+  }
+
+  // This RegExp consists of three parts separated by `|`:
+  // - [yYQqMLwIdDecihHKkms]o matches any available ordinal number token
+  //   (one of the certain letters followed by `o`)
+  // - (\w)\1* matches any sequences of the same letter
+  // - '' matches two quote characters in a row
+  // - '(''|[^'])+('|$) matches anything surrounded by two quote characters ('),
+  //   except a single quote symbol, which ends the sequence.
+  //   Two quote characters do not end the sequence.
+  //   If there is no matching single quote
+  //   then the sequence will continue until the end of the string.
+  // - . matches any single character unmatched by previous parts of the RegExps
+  const formattingTokensRegExp$1 =
+    /[yYQqMLwIdDecihHKkms]o|(\w)\1*|''|'(''|[^'])+('|$)|./g;
+
+  // This RegExp catches symbols escaped by quotes, and also
+  // sequences of symbols P, p, and the combinations like `PPPPPPPppppp`
+  const longFormattingTokensRegExp$1 = /P+p+|P+|p+|''|'(''|[^'])+('|$)|./g;
+
+  const escapedStringRegExp$1 = /^'([^]*?)'?$/;
+  const doubleQuoteRegExp$1 = /''/g;
+  const unescapedLatinCharacterRegExp$1 = /[a-zA-Z]/;
+
+  /**
+   * The {@link format} function options.
+   */
+
+  /**
+   * @name format
+   * @alias formatDate
+   * @category Common Helpers
+   * @summary Format the date.
+   *
+   * @description
+   * Return the formatted date string in the given format. The result may vary by locale.
+   *
+   * > ⚠️ Please note that the `format` tokens differ from Moment.js and other libraries.
+   * > See: https://github.com/date-fns/date-fns/blob/master/docs/unicodeTokens.md
+   *
+   * The characters wrapped between two single quotes characters (') are escaped.
+   * Two single quotes in a row, whether inside or outside a quoted sequence, represent a 'real' single quote.
+   * (see the last example)
+   *
+   * Format of the string is based on Unicode Technical Standard #35:
+   * https://www.unicode.org/reports/tr35/tr35-dates.html#Date_Field_Symbol_Table
+   * with a few additions (see note 7 below the table).
+   *
+   * Accepted patterns:
+   * | Unit                            | Pattern | Result examples                   | Notes |
+   * |---------------------------------|---------|-----------------------------------|-------|
+   * | Era                             | G..GGG  | AD, BC                            |       |
+   * |                                 | GGGG    | Anno Domini, Before Christ        | 2     |
+   * |                                 | GGGGG   | A, B                              |       |
+   * | Calendar year                   | y       | 44, 1, 1900, 2017                 | 5     |
+   * |                                 | yo      | 44th, 1st, 0th, 17th              | 5,7   |
+   * |                                 | yy      | 44, 01, 00, 17                    | 5     |
+   * |                                 | yyy     | 044, 001, 1900, 2017              | 5     |
+   * |                                 | yyyy    | 0044, 0001, 1900, 2017            | 5     |
+   * |                                 | yyyyy   | ...                               | 3,5   |
+   * | Local week-numbering year       | Y       | 44, 1, 1900, 2017                 | 5     |
+   * |                                 | Yo      | 44th, 1st, 1900th, 2017th         | 5,7   |
+   * |                                 | YY      | 44, 01, 00, 17                    | 5,8   |
+   * |                                 | YYY     | 044, 001, 1900, 2017              | 5     |
+   * |                                 | YYYY    | 0044, 0001, 1900, 2017            | 5,8   |
+   * |                                 | YYYYY   | ...                               | 3,5   |
+   * | ISO week-numbering year         | R       | -43, 0, 1, 1900, 2017             | 5,7   |
+   * |                                 | RR      | -43, 00, 01, 1900, 2017           | 5,7   |
+   * |                                 | RRR     | -043, 000, 001, 1900, 2017        | 5,7   |
+   * |                                 | RRRR    | -0043, 0000, 0001, 1900, 2017     | 5,7   |
+   * |                                 | RRRRR   | ...                               | 3,5,7 |
+   * | Extended year                   | u       | -43, 0, 1, 1900, 2017             | 5     |
+   * |                                 | uu      | -43, 01, 1900, 2017               | 5     |
+   * |                                 | uuu     | -043, 001, 1900, 2017             | 5     |
+   * |                                 | uuuu    | -0043, 0001, 1900, 2017           | 5     |
+   * |                                 | uuuuu   | ...                               | 3,5   |
+   * | Quarter (formatting)            | Q       | 1, 2, 3, 4                        |       |
+   * |                                 | Qo      | 1st, 2nd, 3rd, 4th                | 7     |
+   * |                                 | QQ      | 01, 02, 03, 04                    |       |
+   * |                                 | QQQ     | Q1, Q2, Q3, Q4                    |       |
+   * |                                 | QQQQ    | 1st quarter, 2nd quarter, ...     | 2     |
+   * |                                 | QQQQQ   | 1, 2, 3, 4                        | 4     |
+   * | Quarter (stand-alone)           | q       | 1, 2, 3, 4                        |       |
+   * |                                 | qo      | 1st, 2nd, 3rd, 4th                | 7     |
+   * |                                 | qq      | 01, 02, 03, 04                    |       |
+   * |                                 | qqq     | Q1, Q2, Q3, Q4                    |       |
+   * |                                 | qqqq    | 1st quarter, 2nd quarter, ...     | 2     |
+   * |                                 | qqqqq   | 1, 2, 3, 4                        | 4     |
+   * | Month (formatting)              | M       | 1, 2, ..., 12                     |       |
+   * |                                 | Mo      | 1st, 2nd, ..., 12th               | 7     |
+   * |                                 | MM      | 01, 02, ..., 12                   |       |
+   * |                                 | MMM     | Jan, Feb, ..., Dec                |       |
+   * |                                 | MMMM    | January, February, ..., December  | 2     |
+   * |                                 | MMMMM   | J, F, ..., D                      |       |
+   * | Month (stand-alone)             | L       | 1, 2, ..., 12                     |       |
+   * |                                 | Lo      | 1st, 2nd, ..., 12th               | 7     |
+   * |                                 | LL      | 01, 02, ..., 12                   |       |
+   * |                                 | LLL     | Jan, Feb, ..., Dec                |       |
+   * |                                 | LLLL    | January, February, ..., December  | 2     |
+   * |                                 | LLLLL   | J, F, ..., D                      |       |
+   * | Local week of year              | w       | 1, 2, ..., 53                     |       |
+   * |                                 | wo      | 1st, 2nd, ..., 53th               | 7     |
+   * |                                 | ww      | 01, 02, ..., 53                   |       |
+   * | ISO week of year                | I       | 1, 2, ..., 53                     | 7     |
+   * |                                 | Io      | 1st, 2nd, ..., 53th               | 7     |
+   * |                                 | II      | 01, 02, ..., 53                   | 7     |
+   * | Day of month                    | d       | 1, 2, ..., 31                     |       |
+   * |                                 | do      | 1st, 2nd, ..., 31st               | 7     |
+   * |                                 | dd      | 01, 02, ..., 31                   |       |
+   * | Day of year                     | D       | 1, 2, ..., 365, 366               | 9     |
+   * |                                 | Do      | 1st, 2nd, ..., 365th, 366th       | 7     |
+   * |                                 | DD      | 01, 02, ..., 365, 366             | 9     |
+   * |                                 | DDD     | 001, 002, ..., 365, 366           |       |
+   * |                                 | DDDD    | ...                               | 3     |
+   * | Day of week (formatting)        | E..EEE  | Mon, Tue, Wed, ..., Sun           |       |
+   * |                                 | EEEE    | Monday, Tuesday, ..., Sunday      | 2     |
+   * |                                 | EEEEE   | M, T, W, T, F, S, S               |       |
+   * |                                 | EEEEEE  | Mo, Tu, We, Th, Fr, Sa, Su        |       |
+   * | ISO day of week (formatting)    | i       | 1, 2, 3, ..., 7                   | 7     |
+   * |                                 | io      | 1st, 2nd, ..., 7th                | 7     |
+   * |                                 | ii      | 01, 02, ..., 07                   | 7     |
+   * |                                 | iii     | Mon, Tue, Wed, ..., Sun           | 7     |
+   * |                                 | iiii    | Monday, Tuesday, ..., Sunday      | 2,7   |
+   * |                                 | iiiii   | M, T, W, T, F, S, S               | 7     |
+   * |                                 | iiiiii  | Mo, Tu, We, Th, Fr, Sa, Su        | 7     |
+   * | Local day of week (formatting)  | e       | 2, 3, 4, ..., 1                   |       |
+   * |                                 | eo      | 2nd, 3rd, ..., 1st                | 7     |
+   * |                                 | ee      | 02, 03, ..., 01                   |       |
+   * |                                 | eee     | Mon, Tue, Wed, ..., Sun           |       |
+   * |                                 | eeee    | Monday, Tuesday, ..., Sunday      | 2     |
+   * |                                 | eeeee   | M, T, W, T, F, S, S               |       |
+   * |                                 | eeeeee  | Mo, Tu, We, Th, Fr, Sa, Su        |       |
+   * | Local day of week (stand-alone) | c       | 2, 3, 4, ..., 1                   |       |
+   * |                                 | co      | 2nd, 3rd, ..., 1st                | 7     |
+   * |                                 | cc      | 02, 03, ..., 01                   |       |
+   * |                                 | ccc     | Mon, Tue, Wed, ..., Sun           |       |
+   * |                                 | cccc    | Monday, Tuesday, ..., Sunday      | 2     |
+   * |                                 | ccccc   | M, T, W, T, F, S, S               |       |
+   * |                                 | cccccc  | Mo, Tu, We, Th, Fr, Sa, Su        |       |
+   * | AM, PM                          | a..aa   | AM, PM                            |       |
+   * |                                 | aaa     | am, pm                            |       |
+   * |                                 | aaaa    | a.m., p.m.                        | 2     |
+   * |                                 | aaaaa   | a, p                              |       |
+   * | AM, PM, noon, midnight          | b..bb   | AM, PM, noon, midnight            |       |
+   * |                                 | bbb     | am, pm, noon, midnight            |       |
+   * |                                 | bbbb    | a.m., p.m., noon, midnight        | 2     |
+   * |                                 | bbbbb   | a, p, n, mi                       |       |
+   * | Flexible day period             | B..BBB  | at night, in the morning, ...     |       |
+   * |                                 | BBBB    | at night, in the morning, ...     | 2     |
+   * |                                 | BBBBB   | at night, in the morning, ...     |       |
+   * | Hour [1-12]                     | h       | 1, 2, ..., 11, 12                 |       |
+   * |                                 | ho      | 1st, 2nd, ..., 11th, 12th         | 7     |
+   * |                                 | hh      | 01, 02, ..., 11, 12               |       |
+   * | Hour [0-23]                     | H       | 0, 1, 2, ..., 23                  |       |
+   * |                                 | Ho      | 0th, 1st, 2nd, ..., 23rd          | 7     |
+   * |                                 | HH      | 00, 01, 02, ..., 23               |       |
+   * | Hour [0-11]                     | K       | 1, 2, ..., 11, 0                  |       |
+   * |                                 | Ko      | 1st, 2nd, ..., 11th, 0th          | 7     |
+   * |                                 | KK      | 01, 02, ..., 11, 00               |       |
+   * | Hour [1-24]                     | k       | 24, 1, 2, ..., 23                 |       |
+   * |                                 | ko      | 24th, 1st, 2nd, ..., 23rd         | 7     |
+   * |                                 | kk      | 24, 01, 02, ..., 23               |       |
+   * | Minute                          | m       | 0, 1, ..., 59                     |       |
+   * |                                 | mo      | 0th, 1st, ..., 59th               | 7     |
+   * |                                 | mm      | 00, 01, ..., 59                   |       |
+   * | Second                          | s       | 0, 1, ..., 59                     |       |
+   * |                                 | so      | 0th, 1st, ..., 59th               | 7     |
+   * |                                 | ss      | 00, 01, ..., 59                   |       |
+   * | Fraction of second              | S       | 0, 1, ..., 9                      |       |
+   * |                                 | SS      | 00, 01, ..., 99                   |       |
+   * |                                 | SSS     | 000, 001, ..., 999                |       |
+   * |                                 | SSSS    | ...                               | 3     |
+   * | Timezone (ISO-8601 w/ Z)        | X       | -08, +0530, Z                     |       |
+   * |                                 | XX      | -0800, +0530, Z                   |       |
+   * |                                 | XXX     | -08:00, +05:30, Z                 |       |
+   * |                                 | XXXX    | -0800, +0530, Z, +123456          | 2     |
+   * |                                 | XXXXX   | -08:00, +05:30, Z, +12:34:56      |       |
+   * | Timezone (ISO-8601 w/o Z)       | x       | -08, +0530, +00                   |       |
+   * |                                 | xx      | -0800, +0530, +0000               |       |
+   * |                                 | xxx     | -08:00, +05:30, +00:00            | 2     |
+   * |                                 | xxxx    | -0800, +0530, +0000, +123456      |       |
+   * |                                 | xxxxx   | -08:00, +05:30, +00:00, +12:34:56 |       |
+   * | Timezone (GMT)                  | O...OOO | GMT-8, GMT+5:30, GMT+0            |       |
+   * |                                 | OOOO    | GMT-08:00, GMT+05:30, GMT+00:00   | 2     |
+   * | Timezone (specific non-locat.)  | z...zzz | GMT-8, GMT+5:30, GMT+0            | 6     |
+   * |                                 | zzzz    | GMT-08:00, GMT+05:30, GMT+00:00   | 2,6   |
+   * | Seconds timestamp               | t       | 512969520                         | 7     |
+   * |                                 | tt      | ...                               | 3,7   |
+   * | Milliseconds timestamp          | T       | 512969520900                      | 7     |
+   * |                                 | TT      | ...                               | 3,7   |
+   * | Long localized date             | P       | 04/29/1453                        | 7     |
+   * |                                 | PP      | Apr 29, 1453                      | 7     |
+   * |                                 | PPP     | April 29th, 1453                  | 7     |
+   * |                                 | PPPP    | Friday, April 29th, 1453          | 2,7   |
+   * | Long localized time             | p       | 12:00 AM                          | 7     |
+   * |                                 | pp      | 12:00:00 AM                       | 7     |
+   * |                                 | ppp     | 12:00:00 AM GMT+2                 | 7     |
+   * |                                 | pppp    | 12:00:00 AM GMT+02:00             | 2,7   |
+   * | Combination of date and time    | Pp      | 04/29/1453, 12:00 AM              | 7     |
+   * |                                 | PPpp    | Apr 29, 1453, 12:00:00 AM         | 7     |
+   * |                                 | PPPppp  | April 29th, 1453 at ...           | 7     |
+   * |                                 | PPPPpppp| Friday, April 29th, 1453 at ...   | 2,7   |
+   * Notes:
+   * 1. "Formatting" units (e.g. formatting quarter) in the default en-US locale
+   *    are the same as "stand-alone" units, but are different in some languages.
+   *    "Formatting" units are declined according to the rules of the language
+   *    in the context of a date. "Stand-alone" units are always nominative singular:
+   *
+   *    `format(new Date(2017, 10, 6), 'do LLLL', {locale: cs}) //=> '6. listopad'`
+   *
+   *    `format(new Date(2017, 10, 6), 'do MMMM', {locale: cs}) //=> '6. listopadu'`
+   *
+   * 2. Any sequence of the identical letters is a pattern, unless it is escaped by
+   *    the single quote characters (see below).
+   *    If the sequence is longer than listed in table (e.g. `EEEEEEEEEEE`)
+   *    the output will be the same as default pattern for this unit, usually
+   *    the longest one (in case of ISO weekdays, `EEEE`). Default patterns for units
+   *    are marked with "2" in the last column of the table.
+   *
+   *    `format(new Date(2017, 10, 6), 'MMM') //=> 'Nov'`
+   *
+   *    `format(new Date(2017, 10, 6), 'MMMM') //=> 'November'`
+   *
+   *    `format(new Date(2017, 10, 6), 'MMMMM') //=> 'N'`
+   *
+   *    `format(new Date(2017, 10, 6), 'MMMMMM') //=> 'November'`
+   *
+   *    `format(new Date(2017, 10, 6), 'MMMMMMM') //=> 'November'`
+   *
+   * 3. Some patterns could be unlimited length (such as `yyyyyyyy`).
+   *    The output will be padded with zeros to match the length of the pattern.
+   *
+   *    `format(new Date(2017, 10, 6), 'yyyyyyyy') //=> '00002017'`
+   *
+   * 4. `QQQQQ` and `qqqqq` could be not strictly numerical in some locales.
+   *    These tokens represent the shortest form of the quarter.
+   *
+   * 5. The main difference between `y` and `u` patterns are B.C. years:
+   *
+   *    | Year | `y` | `u` |
+   *    |------|-----|-----|
+   *    | AC 1 |   1 |   1 |
+   *    | BC 1 |   1 |   0 |
+   *    | BC 2 |   2 |  -1 |
+   *
+   *    Also `yy` always returns the last two digits of a year,
+   *    while `uu` pads single digit years to 2 characters and returns other years unchanged:
+   *
+   *    | Year | `yy` | `uu` |
+   *    |------|------|------|
+   *    | 1    |   01 |   01 |
+   *    | 14   |   14 |   14 |
+   *    | 376  |   76 |  376 |
+   *    | 1453 |   53 | 1453 |
+   *
+   *    The same difference is true for local and ISO week-numbering years (`Y` and `R`),
+   *    except local week-numbering years are dependent on `options.weekStartsOn`
+   *    and `options.firstWeekContainsDate` (compare [getISOWeekYear](https://date-fns.org/docs/getISOWeekYear)
+   *    and [getWeekYear](https://date-fns.org/docs/getWeekYear)).
+   *
+   * 6. Specific non-location timezones are currently unavailable in `date-fns`,
+   *    so right now these tokens fall back to GMT timezones.
+   *
+   * 7. These patterns are not in the Unicode Technical Standard #35:
+   *    - `i`: ISO day of week
+   *    - `I`: ISO week of year
+   *    - `R`: ISO week-numbering year
+   *    - `t`: seconds timestamp
+   *    - `T`: milliseconds timestamp
+   *    - `o`: ordinal number modifier
+   *    - `P`: long localized date
+   *    - `p`: long localized time
+   *
+   * 8. `YY` and `YYYY` tokens represent week-numbering years but they are often confused with years.
+   *    You should enable `options.useAdditionalWeekYearTokens` to use them. See: https://github.com/date-fns/date-fns/blob/master/docs/unicodeTokens.md
+   *
+   * 9. `D` and `DD` tokens represent days of the year but they are often confused with days of the month.
+   *    You should enable `options.useAdditionalDayOfYearTokens` to use them. See: https://github.com/date-fns/date-fns/blob/master/docs/unicodeTokens.md
+   *
+   * @param date - The original date
+   * @param format - The string of tokens
+   * @param options - An object with options
+   *
+   * @returns The formatted date string
+   *
+   * @throws `date` must not be Invalid Date
+   * @throws `options.locale` must contain `localize` property
+   * @throws `options.locale` must contain `formatLong` property
+   * @throws use `yyyy` instead of `YYYY` for formatting years using [format provided] to the input [input provided]; see: https://github.com/date-fns/date-fns/blob/master/docs/unicodeTokens.md
+   * @throws use `yy` instead of `YY` for formatting years using [format provided] to the input [input provided]; see: https://github.com/date-fns/date-fns/blob/master/docs/unicodeTokens.md
+   * @throws use `d` instead of `D` for formatting days of the month using [format provided] to the input [input provided]; see: https://github.com/date-fns/date-fns/blob/master/docs/unicodeTokens.md
+   * @throws use `dd` instead of `DD` for formatting days of the month using [format provided] to the input [input provided]; see: https://github.com/date-fns/date-fns/blob/master/docs/unicodeTokens.md
+   * @throws format string contains an unescaped latin alphabet character
+   *
+   * @example
+   * // Represent 11 February 2014 in middle-endian format:
+   * const result = format(new Date(2014, 1, 11), 'MM/dd/yyyy')
+   * //=> '02/11/2014'
+   *
+   * @example
+   * // Represent 2 July 2014 in Esperanto:
+   * import { eoLocale } from 'date-fns/locale/eo'
+   * const result = format(new Date(2014, 6, 2), "do 'de' MMMM yyyy", {
+   *   locale: eoLocale
+   * })
+   * //=> '2-a de julio 2014'
+   *
+   * @example
+   * // Escape string by single quote characters:
+   * const result = format(new Date(2014, 6, 2, 15), "h 'o''clock'")
+   * //=> "3 o'clock"
+   */
+  function format(date, formatStr, options) {
+    const defaultOptions = getDefaultOptions$1();
+    const locale = options?.locale ?? defaultOptions.locale ?? enUS;
+
+    const firstWeekContainsDate =
+      options?.firstWeekContainsDate ??
+      options?.locale?.options?.firstWeekContainsDate ??
+      defaultOptions.firstWeekContainsDate ??
+      defaultOptions.locale?.options?.firstWeekContainsDate ??
+      1;
+
+    const weekStartsOn =
+      options?.weekStartsOn ??
+      options?.locale?.options?.weekStartsOn ??
+      defaultOptions.weekStartsOn ??
+      defaultOptions.locale?.options?.weekStartsOn ??
+      0;
+
+    const originalDate = toDate(date, options?.in);
+
+    if (!isValid(originalDate)) {
+      throw new RangeError("Invalid time value");
+    }
+
+    let parts = formatStr
+      .match(longFormattingTokensRegExp$1)
+      .map((substring) => {
+        const firstCharacter = substring[0];
+        if (firstCharacter === "p" || firstCharacter === "P") {
+          const longFormatter = longFormatters[firstCharacter];
+          return longFormatter(substring, locale.formatLong);
+        }
+        return substring;
+      })
+      .join("")
+      .match(formattingTokensRegExp$1)
+      .map((substring) => {
+        // Replace two single quote characters with one single quote character
+        if (substring === "''") {
+          return { isToken: false, value: "'" };
+        }
+
+        const firstCharacter = substring[0];
+        if (firstCharacter === "'") {
+          return { isToken: false, value: cleanEscapedString$1(substring) };
+        }
+
+        if (formatters[firstCharacter]) {
+          return { isToken: true, value: substring };
+        }
+
+        if (firstCharacter.match(unescapedLatinCharacterRegExp$1)) {
+          throw new RangeError(
+            "Format string contains an unescaped latin alphabet character `" +
+              firstCharacter +
+              "`",
+          );
+        }
+
+        return { isToken: false, value: substring };
+      });
+
+    // invoke localize preprocessor (only for french locales at the moment)
+    if (locale.localize.preprocessor) {
+      parts = locale.localize.preprocessor(originalDate, parts);
+    }
+
+    const formatterOptions = {
+      firstWeekContainsDate,
+      weekStartsOn,
+      locale,
+    };
+
+    return parts
+      .map((part) => {
+        if (!part.isToken) return part.value;
+
+        const token = part.value;
+
+        if (
+          (!options?.useAdditionalWeekYearTokens &&
+            isProtectedWeekYearToken(token)) ||
+          (!options?.useAdditionalDayOfYearTokens &&
+            isProtectedDayOfYearToken(token))
+        ) {
+          warnOrThrowProtectedError(token, formatStr, String(date));
+        }
+
+        const formatter = formatters[token[0]];
+        return formatter(originalDate, token, locale.localize, formatterOptions);
+      })
+      .join("");
+  }
+
+  function cleanEscapedString$1(input) {
+    const matched = input.match(escapedStringRegExp$1);
+
+    if (!matched) {
+      return input;
+    }
+
+    return matched[1].replace(doubleQuoteRegExp$1, "'");
+  }
+
+  /**
+   * @name getDefaultOptions
+   * @category Common Helpers
+   * @summary Get default options.
+   * @pure false
+   *
+   * @description
+   * Returns an object that contains defaults for
+   * `options.locale`, `options.weekStartsOn` and `options.firstWeekContainsDate`
+   * arguments for all functions.
+   *
+   * You can change these with [setDefaultOptions](https://date-fns.org/docs/setDefaultOptions).
+   *
+   * @returns The default options
+   *
+   * @example
+   * const result = getDefaultOptions()
+   * //=> {}
+   *
+   * @example
+   * setDefaultOptions({ weekStarsOn: 1, firstWeekContainsDate: 4 })
+   * const result = getDefaultOptions()
+   * //=> { weekStarsOn: 1, firstWeekContainsDate: 4 }
+   */
+  function getDefaultOptions() {
+    return Object.assign({}, getDefaultOptions$1());
+  }
+
+  /**
+   * The {@link getISODay} function options.
+   */
+
+  /**
+   * @name getISODay
+   * @category Weekday Helpers
+   * @summary Get the day of the ISO week of the given date.
+   *
+   * @description
+   * Get the day of the ISO week of the given date,
+   * which is 7 for Sunday, 1 for Monday etc.
+   *
+   * ISO week-numbering year: http://en.wikipedia.org/wiki/ISO_week_date
+   *
+   * @param date - The given date
+   * @param options - An object with options
+   *
+   * @returns The day of ISO week
+   *
+   * @example
+   * // Which day of the ISO week is 26 February 2012?
+   * const result = getISODay(new Date(2012, 1, 26))
+   * //=> 7
+   */
+  function getISODay(date, options) {
+    const day = toDate(date, options?.in).getDay();
+    return day === 0 ? 7 : day;
+  }
+
+  /**
+   * @name transpose
+   * @category Generic Helpers
+   * @summary Transpose the date to the given constructor.
+   *
+   * @description
+   * The function transposes the date to the given constructor. It helps you
+   * to transpose the date in the system time zone to say `UTCDate` or any other
+   * date extension.
+   *
+   * @typeParam InputDate - The input `Date` type derived from the passed argument.
+   * @typeParam ResultDate - The result `Date` type derived from the passed constructor.
+   *
+   * @param date - The date to use values from
+   * @param constructor - The date constructor to use
+   *
+   * @returns Date transposed to the given constructor
+   *
+   * @example
+   * // Create July 10, 2022 00:00 in locale time zone
+   * const date = new Date(2022, 6, 10)
+   * //=> 'Sun Jul 10 2022 00:00:00 GMT+0800 (Singapore Standard Time)'
+   *
+   * @example
+   * // Transpose the date to July 10, 2022 00:00 in UTC
+   * transpose(date, UTCDate)
+   * //=> 'Sun Jul 10 2022 00:00:00 GMT+0000 (Coordinated Universal Time)'
+   */
+  function transpose(date, constructor) {
+    const date_ = isConstructor(constructor)
+      ? new constructor(0)
+      : constructFrom(constructor, 0);
+    date_.setFullYear(date.getFullYear(), date.getMonth(), date.getDate());
+    date_.setHours(
+      date.getHours(),
+      date.getMinutes(),
+      date.getSeconds(),
+      date.getMilliseconds(),
+    );
+    return date_;
+  }
+
+  function isConstructor(constructor) {
+    return (
+      typeof constructor === "function" &&
+      constructor.prototype?.constructor === constructor
+    );
+  }
+
+  const TIMEZONE_UNIT_PRIORITY = 10;
+
+  class Setter {
+    subPriority = 0;
+
+    validate(_utcDate, _options) {
+      return true;
+    }
+  }
+
+  class ValueSetter extends Setter {
+    constructor(
+      value,
+
+      validateValue,
+
+      setValue,
+
+      priority,
+      subPriority,
+    ) {
+      super();
+      this.value = value;
+      this.validateValue = validateValue;
+      this.setValue = setValue;
+      this.priority = priority;
+      if (subPriority) {
+        this.subPriority = subPriority;
+      }
+    }
+
+    validate(date, options) {
+      return this.validateValue(date, this.value, options);
+    }
+
+    set(date, flags, options) {
+      return this.setValue(date, flags, this.value, options);
+    }
+  }
+
+  class DateTimezoneSetter extends Setter {
+    priority = TIMEZONE_UNIT_PRIORITY;
+    subPriority = -1;
+
+    constructor(context, reference) {
+      super();
+      this.context = context || ((date) => constructFrom(reference, date));
+    }
+
+    set(date, flags) {
+      if (flags.timestampIsSet) return date;
+      return constructFrom(date, transpose(date, this.context));
+    }
+  }
+
+  class Parser {
+    run(dateString, token, match, options) {
+      const result = this.parse(dateString, token, match, options);
+      if (!result) {
+        return null;
+      }
+
+      return {
+        setter: new ValueSetter(
+          result.value,
+          this.validate,
+          this.set,
+          this.priority,
+          this.subPriority,
+        ),
+        rest: result.rest,
+      };
+    }
+
+    validate(_utcDate, _value, _options) {
+      return true;
+    }
+  }
+
+  class EraParser extends Parser {
+    priority = 140;
+
+    parse(dateString, token, match) {
+      switch (token) {
+        // AD, BC
+        case "G":
+        case "GG":
+        case "GGG":
+          return (
+            match.era(dateString, { width: "abbreviated" }) ||
+            match.era(dateString, { width: "narrow" })
+          );
+
+        // A, B
+        case "GGGGG":
+          return match.era(dateString, { width: "narrow" });
+        // Anno Domini, Before Christ
+        case "GGGG":
+        default:
+          return (
+            match.era(dateString, { width: "wide" }) ||
+            match.era(dateString, { width: "abbreviated" }) ||
+            match.era(dateString, { width: "narrow" })
+          );
+      }
+    }
+
+    set(date, flags, value) {
+      flags.era = value;
+      date.setFullYear(value, 0, 1);
+      date.setHours(0, 0, 0, 0);
+      return date;
+    }
+
+    incompatibleTokens = ["R", "u", "t", "T"];
+  }
+
+  const numericPatterns = {
+    month: /^(1[0-2]|0?\d)/, // 0 to 12
+    date: /^(3[0-1]|[0-2]?\d)/, // 0 to 31
+    dayOfYear: /^(36[0-6]|3[0-5]\d|[0-2]?\d?\d)/, // 0 to 366
+    week: /^(5[0-3]|[0-4]?\d)/, // 0 to 53
+    hour23h: /^(2[0-3]|[0-1]?\d)/, // 0 to 23
+    hour24h: /^(2[0-4]|[0-1]?\d)/, // 0 to 24
+    hour11h: /^(1[0-1]|0?\d)/, // 0 to 11
+    hour12h: /^(1[0-2]|0?\d)/, // 0 to 12
+    minute: /^[0-5]?\d/, // 0 to 59
+    second: /^[0-5]?\d/, // 0 to 59
+
+    singleDigit: /^\d/, // 0 to 9
+    twoDigits: /^\d{1,2}/, // 0 to 99
+    threeDigits: /^\d{1,3}/, // 0 to 999
+    fourDigits: /^\d{1,4}/, // 0 to 9999
+
+    anyDigitsSigned: /^-?\d+/,
+    singleDigitSigned: /^-?\d/, // 0 to 9, -0 to -9
+    twoDigitsSigned: /^-?\d{1,2}/, // 0 to 99, -0 to -99
+    threeDigitsSigned: /^-?\d{1,3}/, // 0 to 999, -0 to -999
+    fourDigitsSigned: /^-?\d{1,4}/, // 0 to 9999, -0 to -9999
+  };
+
+  const timezonePatterns = {
+    basicOptionalMinutes: /^([+-])(\d{2})(\d{2})?|Z/,
+    basic: /^([+-])(\d{2})(\d{2})|Z/,
+    basicOptionalSeconds: /^([+-])(\d{2})(\d{2})((\d{2}))?|Z/,
+    extended: /^([+-])(\d{2}):(\d{2})|Z/,
+    extendedOptionalSeconds: /^([+-])(\d{2}):(\d{2})(:(\d{2}))?|Z/,
+  };
+
+  function mapValue(parseFnResult, mapFn) {
+    if (!parseFnResult) {
+      return parseFnResult;
+    }
+
+    return {
+      value: mapFn(parseFnResult.value),
+      rest: parseFnResult.rest,
+    };
+  }
+
+  function parseNumericPattern(pattern, dateString) {
+    const matchResult = dateString.match(pattern);
+
+    if (!matchResult) {
+      return null;
+    }
+
+    return {
+      value: parseInt(matchResult[0], 10),
+      rest: dateString.slice(matchResult[0].length),
+    };
+  }
+
+  function parseTimezonePattern(pattern, dateString) {
+    const matchResult = dateString.match(pattern);
+
+    if (!matchResult) {
+      return null;
+    }
+
+    // Input is 'Z'
+    if (matchResult[0] === "Z") {
+      return {
+        value: 0,
+        rest: dateString.slice(1),
+      };
+    }
+
+    const sign = matchResult[1] === "+" ? 1 : -1;
+    const hours = matchResult[2] ? parseInt(matchResult[2], 10) : 0;
+    const minutes = matchResult[3] ? parseInt(matchResult[3], 10) : 0;
+    const seconds = matchResult[5] ? parseInt(matchResult[5], 10) : 0;
+
+    return {
+      value:
+        sign *
+        (hours * millisecondsInHour +
+          minutes * millisecondsInMinute +
+          seconds * millisecondsInSecond),
+      rest: dateString.slice(matchResult[0].length),
+    };
+  }
+
+  function parseAnyDigitsSigned(dateString) {
+    return parseNumericPattern(numericPatterns.anyDigitsSigned, dateString);
+  }
+
+  function parseNDigits(n, dateString) {
+    switch (n) {
+      case 1:
+        return parseNumericPattern(numericPatterns.singleDigit, dateString);
+      case 2:
+        return parseNumericPattern(numericPatterns.twoDigits, dateString);
+      case 3:
+        return parseNumericPattern(numericPatterns.threeDigits, dateString);
+      case 4:
+        return parseNumericPattern(numericPatterns.fourDigits, dateString);
+      default:
+        return parseNumericPattern(new RegExp("^\\d{1," + n + "}"), dateString);
+    }
+  }
+
+  function parseNDigitsSigned(n, dateString) {
+    switch (n) {
+      case 1:
+        return parseNumericPattern(numericPatterns.singleDigitSigned, dateString);
+      case 2:
+        return parseNumericPattern(numericPatterns.twoDigitsSigned, dateString);
+      case 3:
+        return parseNumericPattern(numericPatterns.threeDigitsSigned, dateString);
+      case 4:
+        return parseNumericPattern(numericPatterns.fourDigitsSigned, dateString);
+      default:
+        return parseNumericPattern(new RegExp("^-?\\d{1," + n + "}"), dateString);
+    }
+  }
+
+  function dayPeriodEnumToHours(dayPeriod) {
+    switch (dayPeriod) {
+      case "morning":
+        return 4;
+      case "evening":
+        return 17;
+      case "pm":
+      case "noon":
+      case "afternoon":
+        return 12;
+      case "am":
+      case "midnight":
+      case "night":
+      default:
+        return 0;
+    }
+  }
+
+  function normalizeTwoDigitYear(twoDigitYear, currentYear) {
+    const isCommonEra = currentYear > 0;
+    // Absolute number of the current year:
+    // 1 -> 1 AC
+    // 0 -> 1 BC
+    // -1 -> 2 BC
+    const absCurrentYear = isCommonEra ? currentYear : 1 - currentYear;
+
+    let result;
+    if (absCurrentYear <= 50) {
+      result = twoDigitYear || 100;
+    } else {
+      const rangeEnd = absCurrentYear + 50;
+      const rangeEndCentury = Math.trunc(rangeEnd / 100) * 100;
+      const isPreviousCentury = twoDigitYear >= rangeEnd % 100;
+      result = twoDigitYear + rangeEndCentury - (isPreviousCentury ? 100 : 0);
+    }
+
+    return isCommonEra ? result : 1 - result;
+  }
+
+  function isLeapYearIndex$1(year) {
+    return year % 400 === 0 || (year % 4 === 0 && year % 100 !== 0);
+  }
+
+  // From http://www.unicode.org/reports/tr35/tr35-31/tr35-dates.html#Date_Format_Patterns
+  // | Year     |     y | yy |   yyy |  yyyy | yyyyy |
+  // |----------|-------|----|-------|-------|-------|
+  // | AD 1     |     1 | 01 |   001 |  0001 | 00001 |
+  // | AD 12    |    12 | 12 |   012 |  0012 | 00012 |
+  // | AD 123   |   123 | 23 |   123 |  0123 | 00123 |
+  // | AD 1234  |  1234 | 34 |  1234 |  1234 | 01234 |
+  // | AD 12345 | 12345 | 45 | 12345 | 12345 | 12345 |
+  class YearParser extends Parser {
+    priority = 130;
+    incompatibleTokens = ["Y", "R", "u", "w", "I", "i", "e", "c", "t", "T"];
+
+    parse(dateString, token, match) {
+      const valueCallback = (year) => ({
+        year,
+        isTwoDigitYear: token === "yy",
+      });
+
+      switch (token) {
+        case "y":
+          return mapValue(parseNDigits(4, dateString), valueCallback);
+        case "yo":
+          return mapValue(
+            match.ordinalNumber(dateString, {
+              unit: "year",
+            }),
+            valueCallback,
+          );
+        default:
+          return mapValue(parseNDigits(token.length, dateString), valueCallback);
+      }
+    }
+
+    validate(_date, value) {
+      return value.isTwoDigitYear || value.year > 0;
+    }
+
+    set(date, flags, value) {
+      const currentYear = date.getFullYear();
+
+      if (value.isTwoDigitYear) {
+        const normalizedTwoDigitYear = normalizeTwoDigitYear(
+          value.year,
+          currentYear,
+        );
+        date.setFullYear(normalizedTwoDigitYear, 0, 1);
+        date.setHours(0, 0, 0, 0);
+        return date;
+      }
+
+      const year =
+        !("era" in flags) || flags.era === 1 ? value.year : 1 - value.year;
+      date.setFullYear(year, 0, 1);
+      date.setHours(0, 0, 0, 0);
+      return date;
+    }
+  }
+
+  // Local week-numbering year
+  class LocalWeekYearParser extends Parser {
+    priority = 130;
+
+    parse(dateString, token, match) {
+      const valueCallback = (year) => ({
+        year,
+        isTwoDigitYear: token === "YY",
+      });
+
+      switch (token) {
+        case "Y":
+          return mapValue(parseNDigits(4, dateString), valueCallback);
+        case "Yo":
+          return mapValue(
+            match.ordinalNumber(dateString, {
+              unit: "year",
+            }),
+            valueCallback,
+          );
+        default:
+          return mapValue(parseNDigits(token.length, dateString), valueCallback);
+      }
+    }
+
+    validate(_date, value) {
+      return value.isTwoDigitYear || value.year > 0;
+    }
+
+    set(date, flags, value, options) {
+      const currentYear = getWeekYear(date, options);
+
+      if (value.isTwoDigitYear) {
+        const normalizedTwoDigitYear = normalizeTwoDigitYear(
+          value.year,
+          currentYear,
+        );
+        date.setFullYear(
+          normalizedTwoDigitYear,
+          0,
+          options.firstWeekContainsDate,
+        );
+        date.setHours(0, 0, 0, 0);
+        return startOfWeek(date, options);
+      }
+
+      const year =
+        !("era" in flags) || flags.era === 1 ? value.year : 1 - value.year;
+      date.setFullYear(year, 0, options.firstWeekContainsDate);
+      date.setHours(0, 0, 0, 0);
+      return startOfWeek(date, options);
+    }
+
+    incompatibleTokens = [
+      "y",
+      "R",
+      "u",
+      "Q",
+      "q",
+      "M",
+      "L",
+      "I",
+      "d",
+      "D",
+      "i",
+      "t",
+      "T",
+    ];
+  }
+
+  // ISO week-numbering year
+  class ISOWeekYearParser extends Parser {
+    priority = 130;
+
+    parse(dateString, token) {
+      if (token === "R") {
+        return parseNDigitsSigned(4, dateString);
+      }
+
+      return parseNDigitsSigned(token.length, dateString);
+    }
+
+    set(date, _flags, value) {
+      const firstWeekOfYear = constructFrom(date, 0);
+      firstWeekOfYear.setFullYear(value, 0, 4);
+      firstWeekOfYear.setHours(0, 0, 0, 0);
+      return startOfISOWeek(firstWeekOfYear);
+    }
+
+    incompatibleTokens = [
+      "G",
+      "y",
+      "Y",
+      "u",
+      "Q",
+      "q",
+      "M",
+      "L",
+      "w",
+      "d",
+      "D",
+      "e",
+      "c",
+      "t",
+      "T",
+    ];
+  }
+
+  class ExtendedYearParser extends Parser {
+    priority = 130;
+
+    parse(dateString, token) {
+      if (token === "u") {
+        return parseNDigitsSigned(4, dateString);
+      }
+
+      return parseNDigitsSigned(token.length, dateString);
+    }
+
+    set(date, _flags, value) {
+      date.setFullYear(value, 0, 1);
+      date.setHours(0, 0, 0, 0);
+      return date;
+    }
+
+    incompatibleTokens = ["G", "y", "Y", "R", "w", "I", "i", "e", "c", "t", "T"];
+  }
+
+  class QuarterParser extends Parser {
+    priority = 120;
+
+    parse(dateString, token, match) {
+      switch (token) {
+        // 1, 2, 3, 4
+        case "Q":
+        case "QQ": // 01, 02, 03, 04
+          return parseNDigits(token.length, dateString);
+        // 1st, 2nd, 3rd, 4th
+        case "Qo":
+          return match.ordinalNumber(dateString, { unit: "quarter" });
+        // Q1, Q2, Q3, Q4
+        case "QQQ":
+          return (
+            match.quarter(dateString, {
+              width: "abbreviated",
+              context: "formatting",
+            }) ||
+            match.quarter(dateString, {
+              width: "narrow",
+              context: "formatting",
+            })
+          );
+
+        // 1, 2, 3, 4 (narrow quarter; could be not numerical)
+        case "QQQQQ":
+          return match.quarter(dateString, {
+            width: "narrow",
+            context: "formatting",
+          });
+        // 1st quarter, 2nd quarter, ...
+        case "QQQQ":
+        default:
+          return (
+            match.quarter(dateString, {
+              width: "wide",
+              context: "formatting",
+            }) ||
+            match.quarter(dateString, {
+              width: "abbreviated",
+              context: "formatting",
+            }) ||
+            match.quarter(dateString, {
+              width: "narrow",
+              context: "formatting",
+            })
+          );
+      }
+    }
+
+    validate(_date, value) {
+      return value >= 1 && value <= 4;
+    }
+
+    set(date, _flags, value) {
+      date.setMonth((value - 1) * 3, 1);
+      date.setHours(0, 0, 0, 0);
+      return date;
+    }
+
+    incompatibleTokens = [
+      "Y",
+      "R",
+      "q",
+      "M",
+      "L",
+      "w",
+      "I",
+      "d",
+      "D",
+      "i",
+      "e",
+      "c",
+      "t",
+      "T",
+    ];
+  }
+
+  class StandAloneQuarterParser extends Parser {
+    priority = 120;
+
+    parse(dateString, token, match) {
+      switch (token) {
+        // 1, 2, 3, 4
+        case "q":
+        case "qq": // 01, 02, 03, 04
+          return parseNDigits(token.length, dateString);
+        // 1st, 2nd, 3rd, 4th
+        case "qo":
+          return match.ordinalNumber(dateString, { unit: "quarter" });
+        // Q1, Q2, Q3, Q4
+        case "qqq":
+          return (
+            match.quarter(dateString, {
+              width: "abbreviated",
+              context: "standalone",
+            }) ||
+            match.quarter(dateString, {
+              width: "narrow",
+              context: "standalone",
+            })
+          );
+
+        // 1, 2, 3, 4 (narrow quarter; could be not numerical)
+        case "qqqqq":
+          return match.quarter(dateString, {
+            width: "narrow",
+            context: "standalone",
+          });
+        // 1st quarter, 2nd quarter, ...
+        case "qqqq":
+        default:
+          return (
+            match.quarter(dateString, {
+              width: "wide",
+              context: "standalone",
+            }) ||
+            match.quarter(dateString, {
+              width: "abbreviated",
+              context: "standalone",
+            }) ||
+            match.quarter(dateString, {
+              width: "narrow",
+              context: "standalone",
+            })
+          );
+      }
+    }
+
+    validate(_date, value) {
+      return value >= 1 && value <= 4;
+    }
+
+    set(date, _flags, value) {
+      date.setMonth((value - 1) * 3, 1);
+      date.setHours(0, 0, 0, 0);
+      return date;
+    }
+
+    incompatibleTokens = [
+      "Y",
+      "R",
+      "Q",
+      "M",
+      "L",
+      "w",
+      "I",
+      "d",
+      "D",
+      "i",
+      "e",
+      "c",
+      "t",
+      "T",
+    ];
+  }
+
+  class MonthParser extends Parser {
+    incompatibleTokens = [
+      "Y",
+      "R",
+      "q",
+      "Q",
+      "L",
+      "w",
+      "I",
+      "D",
+      "i",
+      "e",
+      "c",
+      "t",
+      "T",
+    ];
+
+    priority = 110;
+
+    parse(dateString, token, match) {
+      const valueCallback = (value) => value - 1;
+
+      switch (token) {
+        // 1, 2, ..., 12
+        case "M":
+          return mapValue(
+            parseNumericPattern(numericPatterns.month, dateString),
+            valueCallback,
+          );
+        // 01, 02, ..., 12
+        case "MM":
+          return mapValue(parseNDigits(2, dateString), valueCallback);
+        // 1st, 2nd, ..., 12th
+        case "Mo":
+          return mapValue(
+            match.ordinalNumber(dateString, {
+              unit: "month",
+            }),
+            valueCallback,
+          );
+        // Jan, Feb, ..., Dec
+        case "MMM":
+          return (
+            match.month(dateString, {
+              width: "abbreviated",
+              context: "formatting",
+            }) ||
+            match.month(dateString, { width: "narrow", context: "formatting" })
+          );
+
+        // J, F, ..., D
+        case "MMMMM":
+          return match.month(dateString, {
+            width: "narrow",
+            context: "formatting",
+          });
+        // January, February, ..., December
+        case "MMMM":
+        default:
+          return (
+            match.month(dateString, { width: "wide", context: "formatting" }) ||
+            match.month(dateString, {
+              width: "abbreviated",
+              context: "formatting",
+            }) ||
+            match.month(dateString, { width: "narrow", context: "formatting" })
+          );
+      }
+    }
+
+    validate(_date, value) {
+      return value >= 0 && value <= 11;
+    }
+
+    set(date, _flags, value) {
+      date.setMonth(value, 1);
+      date.setHours(0, 0, 0, 0);
+      return date;
+    }
+  }
+
+  class StandAloneMonthParser extends Parser {
+    priority = 110;
+
+    parse(dateString, token, match) {
+      const valueCallback = (value) => value - 1;
+
+      switch (token) {
+        // 1, 2, ..., 12
+        case "L":
+          return mapValue(
+            parseNumericPattern(numericPatterns.month, dateString),
+            valueCallback,
+          );
+        // 01, 02, ..., 12
+        case "LL":
+          return mapValue(parseNDigits(2, dateString), valueCallback);
+        // 1st, 2nd, ..., 12th
+        case "Lo":
+          return mapValue(
+            match.ordinalNumber(dateString, {
+              unit: "month",
+            }),
+            valueCallback,
+          );
+        // Jan, Feb, ..., Dec
+        case "LLL":
+          return (
+            match.month(dateString, {
+              width: "abbreviated",
+              context: "standalone",
+            }) ||
+            match.month(dateString, { width: "narrow", context: "standalone" })
+          );
+
+        // J, F, ..., D
+        case "LLLLL":
+          return match.month(dateString, {
+            width: "narrow",
+            context: "standalone",
+          });
+        // January, February, ..., December
+        case "LLLL":
+        default:
+          return (
+            match.month(dateString, { width: "wide", context: "standalone" }) ||
+            match.month(dateString, {
+              width: "abbreviated",
+              context: "standalone",
+            }) ||
+            match.month(dateString, { width: "narrow", context: "standalone" })
+          );
+      }
+    }
+
+    validate(_date, value) {
+      return value >= 0 && value <= 11;
+    }
+
+    set(date, _flags, value) {
+      date.setMonth(value, 1);
+      date.setHours(0, 0, 0, 0);
+      return date;
+    }
+
+    incompatibleTokens = [
+      "Y",
+      "R",
+      "q",
+      "Q",
+      "M",
+      "w",
+      "I",
+      "D",
+      "i",
+      "e",
+      "c",
+      "t",
+      "T",
+    ];
+  }
+
+  /**
+   * The {@link setWeek} function options.
+   */
+
+  /**
+   * @name setWeek
+   * @category Week Helpers
+   * @summary Set the local week to the given date.
+   *
+   * @description
+   * Set the local week to the given date, saving the weekday number.
+   * The exact calculation depends on the values of
+   * `options.weekStartsOn` (which is the index of the first day of the week)
+   * and `options.firstWeekContainsDate` (which is the day of January, which is always in
+   * the first week of the week-numbering year)
+   *
+   * Week numbering: https://en.wikipedia.org/wiki/Week#The_ISO_week_date_system
+   *
+   * @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+   * @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+   *
+   * @param date - The date to be changed
+   * @param week - The week of the new date
+   * @param options - An object with options
+   *
+   * @returns The new date with the local week set
+   *
+   * @example
+   * // Set the 1st week to 2 January 2005 with default options:
+   * const result = setWeek(new Date(2005, 0, 2), 1)
+   * //=> Sun Dec 26 2004 00:00:00
+   *
+   * @example
+   * // Set the 1st week to 2 January 2005,
+   * // if Monday is the first day of the week,
+   * // and the first week of the year always contains 4 January:
+   * const result = setWeek(new Date(2005, 0, 2), 1, {
+   *   weekStartsOn: 1,
+   *   firstWeekContainsDate: 4
+   * })
+   * //=> Sun Jan 4 2004 00:00:00
+   */
+  function setWeek(date, week, options) {
+    const date_ = toDate(date, options?.in);
+    const diff = getWeek(date_, options) - week;
+    date_.setDate(date_.getDate() - diff * 7);
+    return toDate(date_, options?.in);
+  }
+
+  // Local week of year
+  class LocalWeekParser extends Parser {
+    priority = 100;
+
+    parse(dateString, token, match) {
+      switch (token) {
+        case "w":
+          return parseNumericPattern(numericPatterns.week, dateString);
+        case "wo":
+          return match.ordinalNumber(dateString, { unit: "week" });
+        default:
+          return parseNDigits(token.length, dateString);
+      }
+    }
+
+    validate(_date, value) {
+      return value >= 1 && value <= 53;
+    }
+
+    set(date, _flags, value, options) {
+      return startOfWeek(setWeek(date, value, options), options);
+    }
+
+    incompatibleTokens = [
+      "y",
+      "R",
+      "u",
+      "q",
+      "Q",
+      "M",
+      "L",
+      "I",
+      "d",
+      "D",
+      "i",
+      "t",
+      "T",
+    ];
+  }
+
+  /**
+   * The {@link setISOWeek} function options.
+   */
+
+  /**
+   * @name setISOWeek
+   * @category ISO Week Helpers
+   * @summary Set the ISO week to the given date.
+   *
+   * @description
+   * Set the ISO week to the given date, saving the weekday number.
+   *
+   * ISO week-numbering year: http://en.wikipedia.org/wiki/ISO_week_date
+   *
+   * @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+   * @typeParam ResultDate - The `Date` type of the context function.
+   *
+   * @param date - The date to be changed
+   * @param week - The ISO week of the new date
+   * @param options - An object with options
+   *
+   * @returns The new date with the ISO week set
+   *
+   * @example
+   * // Set the 53rd ISO week to 7 August 2004:
+   * const result = setISOWeek(new Date(2004, 7, 7), 53)
+   * //=> Sat Jan 01 2005 00:00:00
+   */
+  function setISOWeek(date, week, options) {
+    const _date = toDate(date, options?.in);
+    const diff = getISOWeek(_date, options) - week;
+    _date.setDate(_date.getDate() - diff * 7);
+    return _date;
+  }
+
+  // ISO week of year
+  class ISOWeekParser extends Parser {
+    priority = 100;
+
+    parse(dateString, token, match) {
+      switch (token) {
+        case "I":
+          return parseNumericPattern(numericPatterns.week, dateString);
+        case "Io":
+          return match.ordinalNumber(dateString, { unit: "week" });
+        default:
+          return parseNDigits(token.length, dateString);
+      }
+    }
+
+    validate(_date, value) {
+      return value >= 1 && value <= 53;
+    }
+
+    set(date, _flags, value) {
+      return startOfISOWeek(setISOWeek(date, value));
+    }
+
+    incompatibleTokens = [
+      "y",
+      "Y",
+      "u",
+      "q",
+      "Q",
+      "M",
+      "L",
+      "w",
+      "d",
+      "D",
+      "e",
+      "c",
+      "t",
+      "T",
+    ];
+  }
+
+  const DAYS_IN_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  const DAYS_IN_MONTH_LEAP_YEAR = [
+    31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31,
+  ];
+
+  // Day of the month
+  class DateParser extends Parser {
+    priority = 90;
+    subPriority = 1;
+
+    parse(dateString, token, match) {
+      switch (token) {
+        case "d":
+          return parseNumericPattern(numericPatterns.date, dateString);
+        case "do":
+          return match.ordinalNumber(dateString, { unit: "date" });
+        default:
+          return parseNDigits(token.length, dateString);
+      }
+    }
+
+    validate(date, value) {
+      const year = date.getFullYear();
+      const isLeapYear = isLeapYearIndex$1(year);
+      const month = date.getMonth();
+      if (isLeapYear) {
+        return value >= 1 && value <= DAYS_IN_MONTH_LEAP_YEAR[month];
+      } else {
+        return value >= 1 && value <= DAYS_IN_MONTH[month];
+      }
+    }
+
+    set(date, _flags, value) {
+      date.setDate(value);
+      date.setHours(0, 0, 0, 0);
+      return date;
+    }
+
+    incompatibleTokens = [
+      "Y",
+      "R",
+      "q",
+      "Q",
+      "w",
+      "I",
+      "D",
+      "i",
+      "e",
+      "c",
+      "t",
+      "T",
+    ];
+  }
+
+  class DayOfYearParser extends Parser {
+    priority = 90;
+
+    subpriority = 1;
+
+    parse(dateString, token, match) {
+      switch (token) {
+        case "D":
+        case "DD":
+          return parseNumericPattern(numericPatterns.dayOfYear, dateString);
+        case "Do":
+          return match.ordinalNumber(dateString, { unit: "date" });
+        default:
+          return parseNDigits(token.length, dateString);
+      }
+    }
+
+    validate(date, value) {
+      const year = date.getFullYear();
+      const isLeapYear = isLeapYearIndex$1(year);
+      if (isLeapYear) {
+        return value >= 1 && value <= 366;
+      } else {
+        return value >= 1 && value <= 365;
+      }
+    }
+
+    set(date, _flags, value) {
+      date.setMonth(0, value);
+      date.setHours(0, 0, 0, 0);
+      return date;
+    }
+
+    incompatibleTokens = [
+      "Y",
+      "R",
+      "q",
+      "Q",
+      "M",
+      "L",
+      "w",
+      "I",
+      "d",
+      "E",
+      "i",
+      "e",
+      "c",
+      "t",
+      "T",
+    ];
+  }
+
+  /**
+   * The {@link setDay} function options.
+   */
+
+  /**
+   * @name setDay
+   * @category Weekday Helpers
+   * @summary Set the day of the week to the given date.
+   *
+   * @description
+   * Set the day of the week to the given date.
+   *
+   * @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+   * @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+   *
+   * @param date - The date to be changed
+   * @param day - The day of the week of the new date
+   * @param options - An object with options.
+   *
+   * @returns The new date with the day of the week set
+   *
+   * @example
+   * // Set week day to Sunday, with the default weekStartsOn of Sunday:
+   * const result = setDay(new Date(2014, 8, 1), 0)
+   * //=> Sun Aug 31 2014 00:00:00
+   *
+   * @example
+   * // Set week day to Sunday, with a weekStartsOn of Monday:
+   * const result = setDay(new Date(2014, 8, 1), 0, { weekStartsOn: 1 })
+   * //=> Sun Sep 07 2014 00:00:00
+   */
+  function setDay(date, day, options) {
+    const defaultOptions = getDefaultOptions$1();
+    const weekStartsOn =
+      options?.weekStartsOn ??
+      options?.locale?.options?.weekStartsOn ??
+      defaultOptions.weekStartsOn ??
+      defaultOptions.locale?.options?.weekStartsOn ??
+      0;
+
+    const date_ = toDate(date, options?.in);
+    const currentDay = date_.getDay();
+
+    const remainder = day % 7;
+    const dayIndex = (remainder + 7) % 7;
+
+    const delta = 7 - weekStartsOn;
+    const diff =
+      day < 0 || day > 6
+        ? day - ((currentDay + delta) % 7)
+        : ((dayIndex + delta) % 7) - ((currentDay + delta) % 7);
+    return addDays(date_, diff, options);
+  }
+
+  // Day of week
+  class DayParser extends Parser {
+    priority = 90;
+
+    parse(dateString, token, match) {
+      switch (token) {
+        // Tue
+        case "E":
+        case "EE":
+        case "EEE":
+          return (
+            match.day(dateString, {
+              width: "abbreviated",
+              context: "formatting",
+            }) ||
+            match.day(dateString, { width: "short", context: "formatting" }) ||
+            match.day(dateString, { width: "narrow", context: "formatting" })
+          );
+
+        // T
+        case "EEEEE":
+          return match.day(dateString, {
+            width: "narrow",
+            context: "formatting",
+          });
+        // Tu
+        case "EEEEEE":
+          return (
+            match.day(dateString, { width: "short", context: "formatting" }) ||
+            match.day(dateString, { width: "narrow", context: "formatting" })
+          );
+
+        // Tuesday
+        case "EEEE":
+        default:
+          return (
+            match.day(dateString, { width: "wide", context: "formatting" }) ||
+            match.day(dateString, {
+              width: "abbreviated",
+              context: "formatting",
+            }) ||
+            match.day(dateString, { width: "short", context: "formatting" }) ||
+            match.day(dateString, { width: "narrow", context: "formatting" })
+          );
+      }
+    }
+
+    validate(_date, value) {
+      return value >= 0 && value <= 6;
+    }
+
+    set(date, _flags, value, options) {
+      date = setDay(date, value, options);
+      date.setHours(0, 0, 0, 0);
+      return date;
+    }
+
+    incompatibleTokens = ["D", "i", "e", "c", "t", "T"];
+  }
+
+  // Local day of week
+  class LocalDayParser extends Parser {
+    priority = 90;
+    parse(dateString, token, match, options) {
+      const valueCallback = (value) => {
+        // We want here floor instead of trunc, so we get -7 for value 0 instead of 0
+        const wholeWeekDays = Math.floor((value - 1) / 7) * 7;
+        return ((value + options.weekStartsOn + 6) % 7) + wholeWeekDays;
+      };
+
+      switch (token) {
+        // 3
+        case "e":
+        case "ee": // 03
+          return mapValue(parseNDigits(token.length, dateString), valueCallback);
+        // 3rd
+        case "eo":
+          return mapValue(
+            match.ordinalNumber(dateString, {
+              unit: "day",
+            }),
+            valueCallback,
+          );
+        // Tue
+        case "eee":
+          return (
+            match.day(dateString, {
+              width: "abbreviated",
+              context: "formatting",
+            }) ||
+            match.day(dateString, { width: "short", context: "formatting" }) ||
+            match.day(dateString, { width: "narrow", context: "formatting" })
+          );
+
+        // T
+        case "eeeee":
+          return match.day(dateString, {
+            width: "narrow",
+            context: "formatting",
+          });
+        // Tu
+        case "eeeeee":
+          return (
+            match.day(dateString, { width: "short", context: "formatting" }) ||
+            match.day(dateString, { width: "narrow", context: "formatting" })
+          );
+
+        // Tuesday
+        case "eeee":
+        default:
+          return (
+            match.day(dateString, { width: "wide", context: "formatting" }) ||
+            match.day(dateString, {
+              width: "abbreviated",
+              context: "formatting",
+            }) ||
+            match.day(dateString, { width: "short", context: "formatting" }) ||
+            match.day(dateString, { width: "narrow", context: "formatting" })
+          );
+      }
+    }
+
+    validate(_date, value) {
+      return value >= 0 && value <= 6;
+    }
+
+    set(date, _flags, value, options) {
+      date = setDay(date, value, options);
+      date.setHours(0, 0, 0, 0);
+      return date;
+    }
+
+    incompatibleTokens = [
+      "y",
+      "R",
+      "u",
+      "q",
+      "Q",
+      "M",
+      "L",
+      "I",
+      "d",
+      "D",
+      "E",
+      "i",
+      "c",
+      "t",
+      "T",
+    ];
+  }
+
+  // Stand-alone local day of week
+  class StandAloneLocalDayParser extends Parser {
+    priority = 90;
+
+    parse(dateString, token, match, options) {
+      const valueCallback = (value) => {
+        // We want here floor instead of trunc, so we get -7 for value 0 instead of 0
+        const wholeWeekDays = Math.floor((value - 1) / 7) * 7;
+        return ((value + options.weekStartsOn + 6) % 7) + wholeWeekDays;
+      };
+
+      switch (token) {
+        // 3
+        case "c":
+        case "cc": // 03
+          return mapValue(parseNDigits(token.length, dateString), valueCallback);
+        // 3rd
+        case "co":
+          return mapValue(
+            match.ordinalNumber(dateString, {
+              unit: "day",
+            }),
+            valueCallback,
+          );
+        // Tue
+        case "ccc":
+          return (
+            match.day(dateString, {
+              width: "abbreviated",
+              context: "standalone",
+            }) ||
+            match.day(dateString, { width: "short", context: "standalone" }) ||
+            match.day(dateString, { width: "narrow", context: "standalone" })
+          );
+
+        // T
+        case "ccccc":
+          return match.day(dateString, {
+            width: "narrow",
+            context: "standalone",
+          });
+        // Tu
+        case "cccccc":
+          return (
+            match.day(dateString, { width: "short", context: "standalone" }) ||
+            match.day(dateString, { width: "narrow", context: "standalone" })
+          );
+
+        // Tuesday
+        case "cccc":
+        default:
+          return (
+            match.day(dateString, { width: "wide", context: "standalone" }) ||
+            match.day(dateString, {
+              width: "abbreviated",
+              context: "standalone",
+            }) ||
+            match.day(dateString, { width: "short", context: "standalone" }) ||
+            match.day(dateString, { width: "narrow", context: "standalone" })
+          );
+      }
+    }
+
+    validate(_date, value) {
+      return value >= 0 && value <= 6;
+    }
+
+    set(date, _flags, value, options) {
+      date = setDay(date, value, options);
+      date.setHours(0, 0, 0, 0);
+      return date;
+    }
+
+    incompatibleTokens = [
+      "y",
+      "R",
+      "u",
+      "q",
+      "Q",
+      "M",
+      "L",
+      "I",
+      "d",
+      "D",
+      "E",
+      "i",
+      "e",
+      "t",
+      "T",
+    ];
+  }
+
+  /**
+   * The {@link setISODay} function options.
+   */
+
+  /**
+   * @name setISODay
+   * @category Weekday Helpers
+   * @summary Set the day of the ISO week to the given date.
+   *
+   * @description
+   * Set the day of the ISO week to the given date.
+   * ISO week starts with Monday.
+   * 7 is the index of Sunday, 1 is the index of Monday, etc.
+   *
+   * @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+   * @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+   *
+   * @param date - The date to be changed
+   * @param day - The day of the ISO week of the new date
+   * @param options - An object with options
+   *
+   * @returns The new date with the day of the ISO week set
+   *
+   * @example
+   * // Set Sunday to 1 September 2014:
+   * const result = setISODay(new Date(2014, 8, 1), 7)
+   * //=> Sun Sep 07 2014 00:00:00
+   */
+  function setISODay(date, day, options) {
+    const date_ = toDate(date, options?.in);
+    const currentDay = getISODay(date_, options);
+    const diff = day - currentDay;
+    return addDays(date_, diff, options);
+  }
+
+  // ISO day of week
+  class ISODayParser extends Parser {
+    priority = 90;
+
+    parse(dateString, token, match) {
+      const valueCallback = (value) => {
+        if (value === 0) {
+          return 7;
+        }
+        return value;
+      };
+
+      switch (token) {
+        // 2
+        case "i":
+        case "ii": // 02
+          return parseNDigits(token.length, dateString);
+        // 2nd
+        case "io":
+          return match.ordinalNumber(dateString, { unit: "day" });
+        // Tue
+        case "iii":
+          return mapValue(
+            match.day(dateString, {
+              width: "abbreviated",
+              context: "formatting",
+            }) ||
+              match.day(dateString, {
+                width: "short",
+                context: "formatting",
+              }) ||
+              match.day(dateString, {
+                width: "narrow",
+                context: "formatting",
+              }),
+            valueCallback,
+          );
+        // T
+        case "iiiii":
+          return mapValue(
+            match.day(dateString, {
+              width: "narrow",
+              context: "formatting",
+            }),
+            valueCallback,
+          );
+        // Tu
+        case "iiiiii":
+          return mapValue(
+            match.day(dateString, {
+              width: "short",
+              context: "formatting",
+            }) ||
+              match.day(dateString, {
+                width: "narrow",
+                context: "formatting",
+              }),
+            valueCallback,
+          );
+        // Tuesday
+        case "iiii":
+        default:
+          return mapValue(
+            match.day(dateString, {
+              width: "wide",
+              context: "formatting",
+            }) ||
+              match.day(dateString, {
+                width: "abbreviated",
+                context: "formatting",
+              }) ||
+              match.day(dateString, {
+                width: "short",
+                context: "formatting",
+              }) ||
+              match.day(dateString, {
+                width: "narrow",
+                context: "formatting",
+              }),
+            valueCallback,
+          );
+      }
+    }
+
+    validate(_date, value) {
+      return value >= 1 && value <= 7;
+    }
+
+    set(date, _flags, value) {
+      date = setISODay(date, value);
+      date.setHours(0, 0, 0, 0);
+      return date;
+    }
+
+    incompatibleTokens = [
+      "y",
+      "Y",
+      "u",
+      "q",
+      "Q",
+      "M",
+      "L",
+      "w",
+      "d",
+      "D",
+      "E",
+      "e",
+      "c",
+      "t",
+      "T",
+    ];
+  }
+
+  class AMPMParser extends Parser {
+    priority = 80;
+
+    parse(dateString, token, match) {
+      switch (token) {
+        case "a":
+        case "aa":
+        case "aaa":
+          return (
+            match.dayPeriod(dateString, {
+              width: "abbreviated",
+              context: "formatting",
+            }) ||
+            match.dayPeriod(dateString, {
+              width: "narrow",
+              context: "formatting",
+            })
+          );
+
+        case "aaaaa":
+          return match.dayPeriod(dateString, {
+            width: "narrow",
+            context: "formatting",
+          });
+        case "aaaa":
+        default:
+          return (
+            match.dayPeriod(dateString, {
+              width: "wide",
+              context: "formatting",
+            }) ||
+            match.dayPeriod(dateString, {
+              width: "abbreviated",
+              context: "formatting",
+            }) ||
+            match.dayPeriod(dateString, {
+              width: "narrow",
+              context: "formatting",
+            })
+          );
+      }
+    }
+
+    set(date, _flags, value) {
+      date.setHours(dayPeriodEnumToHours(value), 0, 0, 0);
+      return date;
+    }
+
+    incompatibleTokens = ["b", "B", "H", "k", "t", "T"];
+  }
+
+  class AMPMMidnightParser extends Parser {
+    priority = 80;
+
+    parse(dateString, token, match) {
+      switch (token) {
+        case "b":
+        case "bb":
+        case "bbb":
+          return (
+            match.dayPeriod(dateString, {
+              width: "abbreviated",
+              context: "formatting",
+            }) ||
+            match.dayPeriod(dateString, {
+              width: "narrow",
+              context: "formatting",
+            })
+          );
+
+        case "bbbbb":
+          return match.dayPeriod(dateString, {
+            width: "narrow",
+            context: "formatting",
+          });
+        case "bbbb":
+        default:
+          return (
+            match.dayPeriod(dateString, {
+              width: "wide",
+              context: "formatting",
+            }) ||
+            match.dayPeriod(dateString, {
+              width: "abbreviated",
+              context: "formatting",
+            }) ||
+            match.dayPeriod(dateString, {
+              width: "narrow",
+              context: "formatting",
+            })
+          );
+      }
+    }
+
+    set(date, _flags, value) {
+      date.setHours(dayPeriodEnumToHours(value), 0, 0, 0);
+      return date;
+    }
+
+    incompatibleTokens = ["a", "B", "H", "k", "t", "T"];
+  }
+
+  // in the morning, in the afternoon, in the evening, at night
+  class DayPeriodParser extends Parser {
+    priority = 80;
+
+    parse(dateString, token, match) {
+      switch (token) {
+        case "B":
+        case "BB":
+        case "BBB":
+          return (
+            match.dayPeriod(dateString, {
+              width: "abbreviated",
+              context: "formatting",
+            }) ||
+            match.dayPeriod(dateString, {
+              width: "narrow",
+              context: "formatting",
+            })
+          );
+
+        case "BBBBB":
+          return match.dayPeriod(dateString, {
+            width: "narrow",
+            context: "formatting",
+          });
+        case "BBBB":
+        default:
+          return (
+            match.dayPeriod(dateString, {
+              width: "wide",
+              context: "formatting",
+            }) ||
+            match.dayPeriod(dateString, {
+              width: "abbreviated",
+              context: "formatting",
+            }) ||
+            match.dayPeriod(dateString, {
+              width: "narrow",
+              context: "formatting",
+            })
+          );
+      }
+    }
+
+    set(date, _flags, value) {
+      date.setHours(dayPeriodEnumToHours(value), 0, 0, 0);
+      return date;
+    }
+
+    incompatibleTokens = ["a", "b", "t", "T"];
+  }
+
+  class Hour1to12Parser extends Parser {
+    priority = 70;
+
+    parse(dateString, token, match) {
+      switch (token) {
+        case "h":
+          return parseNumericPattern(numericPatterns.hour12h, dateString);
+        case "ho":
+          return match.ordinalNumber(dateString, { unit: "hour" });
+        default:
+          return parseNDigits(token.length, dateString);
+      }
+    }
+
+    validate(_date, value) {
+      return value >= 1 && value <= 12;
+    }
+
+    set(date, _flags, value) {
+      const isPM = date.getHours() >= 12;
+      if (isPM && value < 12) {
+        date.setHours(value + 12, 0, 0, 0);
+      } else if (!isPM && value === 12) {
+        date.setHours(0, 0, 0, 0);
+      } else {
+        date.setHours(value, 0, 0, 0);
+      }
+      return date;
+    }
+
+    incompatibleTokens = ["H", "K", "k", "t", "T"];
+  }
+
+  class Hour0to23Parser extends Parser {
+    priority = 70;
+
+    parse(dateString, token, match) {
+      switch (token) {
+        case "H":
+          return parseNumericPattern(numericPatterns.hour23h, dateString);
+        case "Ho":
+          return match.ordinalNumber(dateString, { unit: "hour" });
+        default:
+          return parseNDigits(token.length, dateString);
+      }
+    }
+
+    validate(_date, value) {
+      return value >= 0 && value <= 23;
+    }
+
+    set(date, _flags, value) {
+      date.setHours(value, 0, 0, 0);
+      return date;
+    }
+
+    incompatibleTokens = ["a", "b", "h", "K", "k", "t", "T"];
+  }
+
+  class Hour0To11Parser extends Parser {
+    priority = 70;
+
+    parse(dateString, token, match) {
+      switch (token) {
+        case "K":
+          return parseNumericPattern(numericPatterns.hour11h, dateString);
+        case "Ko":
+          return match.ordinalNumber(dateString, { unit: "hour" });
+        default:
+          return parseNDigits(token.length, dateString);
+      }
+    }
+
+    validate(_date, value) {
+      return value >= 0 && value <= 11;
+    }
+
+    set(date, _flags, value) {
+      const isPM = date.getHours() >= 12;
+      if (isPM && value < 12) {
+        date.setHours(value + 12, 0, 0, 0);
+      } else {
+        date.setHours(value, 0, 0, 0);
+      }
+      return date;
+    }
+
+    incompatibleTokens = ["h", "H", "k", "t", "T"];
+  }
+
+  class Hour1To24Parser extends Parser {
+    priority = 70;
+
+    parse(dateString, token, match) {
+      switch (token) {
+        case "k":
+          return parseNumericPattern(numericPatterns.hour24h, dateString);
+        case "ko":
+          return match.ordinalNumber(dateString, { unit: "hour" });
+        default:
+          return parseNDigits(token.length, dateString);
+      }
+    }
+
+    validate(_date, value) {
+      return value >= 1 && value <= 24;
+    }
+
+    set(date, _flags, value) {
+      const hours = value <= 24 ? value % 24 : value;
+      date.setHours(hours, 0, 0, 0);
+      return date;
+    }
+
+    incompatibleTokens = ["a", "b", "h", "H", "K", "t", "T"];
+  }
+
+  class MinuteParser extends Parser {
+    priority = 60;
+
+    parse(dateString, token, match) {
+      switch (token) {
+        case "m":
+          return parseNumericPattern(numericPatterns.minute, dateString);
+        case "mo":
+          return match.ordinalNumber(dateString, { unit: "minute" });
+        default:
+          return parseNDigits(token.length, dateString);
+      }
+    }
+
+    validate(_date, value) {
+      return value >= 0 && value <= 59;
+    }
+
+    set(date, _flags, value) {
+      date.setMinutes(value, 0, 0);
+      return date;
+    }
+
+    incompatibleTokens = ["t", "T"];
+  }
+
+  class SecondParser extends Parser {
+    priority = 50;
+
+    parse(dateString, token, match) {
+      switch (token) {
+        case "s":
+          return parseNumericPattern(numericPatterns.second, dateString);
+        case "so":
+          return match.ordinalNumber(dateString, { unit: "second" });
+        default:
+          return parseNDigits(token.length, dateString);
+      }
+    }
+
+    validate(_date, value) {
+      return value >= 0 && value <= 59;
+    }
+
+    set(date, _flags, value) {
+      date.setSeconds(value, 0);
+      return date;
+    }
+
+    incompatibleTokens = ["t", "T"];
+  }
+
+  class FractionOfSecondParser extends Parser {
+    priority = 30;
+
+    parse(dateString, token) {
+      const valueCallback = (value) =>
+        Math.trunc(value * Math.pow(10, -token.length + 3));
+      return mapValue(parseNDigits(token.length, dateString), valueCallback);
+    }
+
+    set(date, _flags, value) {
+      date.setMilliseconds(value);
+      return date;
+    }
+
+    incompatibleTokens = ["t", "T"];
+  }
+
+  // Timezone (ISO-8601. +00:00 is `'Z'`)
+  class ISOTimezoneWithZParser extends Parser {
+    priority = 10;
+
+    parse(dateString, token) {
+      switch (token) {
+        case "X":
+          return parseTimezonePattern(
+            timezonePatterns.basicOptionalMinutes,
+            dateString,
+          );
+        case "XX":
+          return parseTimezonePattern(timezonePatterns.basic, dateString);
+        case "XXXX":
+          return parseTimezonePattern(
+            timezonePatterns.basicOptionalSeconds,
+            dateString,
+          );
+        case "XXXXX":
+          return parseTimezonePattern(
+            timezonePatterns.extendedOptionalSeconds,
+            dateString,
+          );
+        case "XXX":
+        default:
+          return parseTimezonePattern(timezonePatterns.extended, dateString);
+      }
+    }
+
+    set(date, flags, value) {
+      if (flags.timestampIsSet) return date;
+      return constructFrom(
+        date,
+        date.getTime() - getTimezoneOffsetInMilliseconds(date) - value,
+      );
+    }
+
+    incompatibleTokens = ["t", "T", "x"];
+  }
+
+  // Timezone (ISO-8601)
+  class ISOTimezoneParser extends Parser {
+    priority = 10;
+
+    parse(dateString, token) {
+      switch (token) {
+        case "x":
+          return parseTimezonePattern(
+            timezonePatterns.basicOptionalMinutes,
+            dateString,
+          );
+        case "xx":
+          return parseTimezonePattern(timezonePatterns.basic, dateString);
+        case "xxxx":
+          return parseTimezonePattern(
+            timezonePatterns.basicOptionalSeconds,
+            dateString,
+          );
+        case "xxxxx":
+          return parseTimezonePattern(
+            timezonePatterns.extendedOptionalSeconds,
+            dateString,
+          );
+        case "xxx":
+        default:
+          return parseTimezonePattern(timezonePatterns.extended, dateString);
+      }
+    }
+
+    set(date, flags, value) {
+      if (flags.timestampIsSet) return date;
+      return constructFrom(
+        date,
+        date.getTime() - getTimezoneOffsetInMilliseconds(date) - value,
+      );
+    }
+
+    incompatibleTokens = ["t", "T", "X"];
+  }
+
+  class TimestampSecondsParser extends Parser {
+    priority = 40;
+
+    parse(dateString) {
+      return parseAnyDigitsSigned(dateString);
+    }
+
+    set(date, _flags, value) {
+      return [constructFrom(date, value * 1000), { timestampIsSet: true }];
+    }
+
+    incompatibleTokens = "*";
+  }
+
+  class TimestampMillisecondsParser extends Parser {
+    priority = 20;
+
+    parse(dateString) {
+      return parseAnyDigitsSigned(dateString);
+    }
+
+    set(date, _flags, value) {
+      return [constructFrom(date, value), { timestampIsSet: true }];
+    }
+
+    incompatibleTokens = "*";
+  }
+
+  /*
+   * |     | Unit                           |     | Unit                           |
+   * |-----|--------------------------------|-----|--------------------------------|
+   * |  a  | AM, PM                         |  A* | Milliseconds in day            |
+   * |  b  | AM, PM, noon, midnight         |  B  | Flexible day period            |
+   * |  c  | Stand-alone local day of week  |  C* | Localized hour w/ day period   |
+   * |  d  | Day of month                   |  D  | Day of year                    |
+   * |  e  | Local day of week              |  E  | Day of week                    |
+   * |  f  |                                |  F* | Day of week in month           |
+   * |  g* | Modified Julian day            |  G  | Era                            |
+   * |  h  | Hour [1-12]                    |  H  | Hour [0-23]                    |
+   * |  i! | ISO day of week                |  I! | ISO week of year               |
+   * |  j* | Localized hour w/ day period   |  J* | Localized hour w/o day period  |
+   * |  k  | Hour [1-24]                    |  K  | Hour [0-11]                    |
+   * |  l* | (deprecated)                   |  L  | Stand-alone month              |
+   * |  m  | Minute                         |  M  | Month                          |
+   * |  n  |                                |  N  |                                |
+   * |  o! | Ordinal number modifier        |  O* | Timezone (GMT)                 |
+   * |  p  |                                |  P  |                                |
+   * |  q  | Stand-alone quarter            |  Q  | Quarter                        |
+   * |  r* | Related Gregorian year         |  R! | ISO week-numbering year        |
+   * |  s  | Second                         |  S  | Fraction of second             |
+   * |  t! | Seconds timestamp              |  T! | Milliseconds timestamp         |
+   * |  u  | Extended year                  |  U* | Cyclic year                    |
+   * |  v* | Timezone (generic non-locat.)  |  V* | Timezone (location)            |
+   * |  w  | Local week of year             |  W* | Week of month                  |
+   * |  x  | Timezone (ISO-8601 w/o Z)      |  X  | Timezone (ISO-8601)            |
+   * |  y  | Year (abs)                     |  Y  | Local week-numbering year      |
+   * |  z* | Timezone (specific non-locat.) |  Z* | Timezone (aliases)             |
+   *
+   * Letters marked by * are not implemented but reserved by Unicode standard.
+   *
+   * Letters marked by ! are non-standard, but implemented by date-fns:
+   * - `o` modifies the previous token to turn it into an ordinal (see `parse` docs)
+   * - `i` is ISO day of week. For `i` and `ii` is returns numeric ISO week days,
+   *   i.e. 7 for Sunday, 1 for Monday, etc.
+   * - `I` is ISO week of year, as opposed to `w` which is local week of year.
+   * - `R` is ISO week-numbering year, as opposed to `Y` which is local week-numbering year.
+   *   `R` is supposed to be used in conjunction with `I` and `i`
+   *   for universal ISO week-numbering date, whereas
+   *   `Y` is supposed to be used in conjunction with `w` and `e`
+   *   for week-numbering date specific to the locale.
+   */
+  const parsers = {
+    G: new EraParser(),
+    y: new YearParser(),
+    Y: new LocalWeekYearParser(),
+    R: new ISOWeekYearParser(),
+    u: new ExtendedYearParser(),
+    Q: new QuarterParser(),
+    q: new StandAloneQuarterParser(),
+    M: new MonthParser(),
+    L: new StandAloneMonthParser(),
+    w: new LocalWeekParser(),
+    I: new ISOWeekParser(),
+    d: new DateParser(),
+    D: new DayOfYearParser(),
+    E: new DayParser(),
+    e: new LocalDayParser(),
+    c: new StandAloneLocalDayParser(),
+    i: new ISODayParser(),
+    a: new AMPMParser(),
+    b: new AMPMMidnightParser(),
+    B: new DayPeriodParser(),
+    h: new Hour1to12Parser(),
+    H: new Hour0to23Parser(),
+    K: new Hour0To11Parser(),
+    k: new Hour1To24Parser(),
+    m: new MinuteParser(),
+    s: new SecondParser(),
+    S: new FractionOfSecondParser(),
+    X: new ISOTimezoneWithZParser(),
+    x: new ISOTimezoneParser(),
+    t: new TimestampSecondsParser(),
+    T: new TimestampMillisecondsParser(),
+  };
+
+  /**
+   * The {@link parse} function options.
+   */
+
+  // This RegExp consists of three parts separated by `|`:
+  // - [yYQqMLwIdDecihHKkms]o matches any available ordinal number token
+  //   (one of the certain letters followed by `o`)
+  // - (\w)\1* matches any sequences of the same letter
+  // - '' matches two quote characters in a row
+  // - '(''|[^'])+('|$) matches anything surrounded by two quote characters ('),
+  //   except a single quote symbol, which ends the sequence.
+  //   Two quote characters do not end the sequence.
+  //   If there is no matching single quote
+  //   then the sequence will continue until the end of the string.
+  // - . matches any single character unmatched by previous parts of the RegExps
+  const formattingTokensRegExp =
+    /[yYQqMLwIdDecihHKkms]o|(\w)\1*|''|'(''|[^'])+('|$)|./g;
+
+  // This RegExp catches symbols escaped by quotes, and also
+  // sequences of symbols P, p, and the combinations like `PPPPPPPppppp`
+  const longFormattingTokensRegExp = /P+p+|P+|p+|''|'(''|[^'])+('|$)|./g;
+
+  const escapedStringRegExp = /^'([^]*?)'?$/;
+  const doubleQuoteRegExp = /''/g;
+
+  const notWhitespaceRegExp = /\S/;
+  const unescapedLatinCharacterRegExp = /[a-zA-Z]/;
+
+  /**
+   * @name parse
+   * @category Common Helpers
+   * @summary Parse the date.
+   *
+   * @description
+   * Return the date parsed from string using the given format string.
+   *
+   * > ⚠️ Please note that the `format` tokens differ from Moment.js and other libraries.
+   * > See: https://github.com/date-fns/date-fns/blob/master/docs/unicodeTokens.md
+   *
+   * The characters in the format string wrapped between two single quotes characters (') are escaped.
+   * Two single quotes in a row, whether inside or outside a quoted sequence, represent a 'real' single quote.
+   *
+   * Format of the format string is based on Unicode Technical Standard #35:
+   * https://www.unicode.org/reports/tr35/tr35-dates.html#Date_Field_Symbol_Table
+   * with a few additions (see note 5 below the table).
+   *
+   * Not all tokens are compatible. Combinations that don't make sense or could lead to bugs are prohibited
+   * and will throw `RangeError`. For example usage of 24-hour format token with AM/PM token will throw an exception:
+   *
+   * ```javascript
+   * parse('23 AM', 'HH a', new Date())
+   * //=> RangeError: The format string mustn't contain `HH` and `a` at the same time
+   * ```
+   *
+   * See the compatibility table: https://docs.google.com/spreadsheets/d/e/2PACX-1vQOPU3xUhplll6dyoMmVUXHKl_8CRDs6_ueLmex3SoqwhuolkuN3O05l4rqx5h1dKX8eb46Ul-CCSrq/pubhtml?gid=0&single=true
+   *
+   * Accepted format string patterns:
+   * | Unit                            |Prior| Pattern | Result examples                   | Notes |
+   * |---------------------------------|-----|---------|-----------------------------------|-------|
+   * | Era                             | 140 | G..GGG  | AD, BC                            |       |
+   * |                                 |     | GGGG    | Anno Domini, Before Christ        | 2     |
+   * |                                 |     | GGGGG   | A, B                              |       |
+   * | Calendar year                   | 130 | y       | 44, 1, 1900, 2017, 9999           | 4     |
+   * |                                 |     | yo      | 44th, 1st, 1900th, 9999999th      | 4,5   |
+   * |                                 |     | yy      | 44, 01, 00, 17                    | 4     |
+   * |                                 |     | yyy     | 044, 001, 123, 999                | 4     |
+   * |                                 |     | yyyy    | 0044, 0001, 1900, 2017            | 4     |
+   * |                                 |     | yyyyy   | ...                               | 2,4   |
+   * | Local week-numbering year       | 130 | Y       | 44, 1, 1900, 2017, 9000           | 4     |
+   * |                                 |     | Yo      | 44th, 1st, 1900th, 9999999th      | 4,5   |
+   * |                                 |     | YY      | 44, 01, 00, 17                    | 4,6   |
+   * |                                 |     | YYY     | 044, 001, 123, 999                | 4     |
+   * |                                 |     | YYYY    | 0044, 0001, 1900, 2017            | 4,6   |
+   * |                                 |     | YYYYY   | ...                               | 2,4   |
+   * | ISO week-numbering year         | 130 | R       | -43, 1, 1900, 2017, 9999, -9999   | 4,5   |
+   * |                                 |     | RR      | -43, 01, 00, 17                   | 4,5   |
+   * |                                 |     | RRR     | -043, 001, 123, 999, -999         | 4,5   |
+   * |                                 |     | RRRR    | -0043, 0001, 2017, 9999, -9999    | 4,5   |
+   * |                                 |     | RRRRR   | ...                               | 2,4,5 |
+   * | Extended year                   | 130 | u       | -43, 1, 1900, 2017, 9999, -999    | 4     |
+   * |                                 |     | uu      | -43, 01, 99, -99                  | 4     |
+   * |                                 |     | uuu     | -043, 001, 123, 999, -999         | 4     |
+   * |                                 |     | uuuu    | -0043, 0001, 2017, 9999, -9999    | 4     |
+   * |                                 |     | uuuuu   | ...                               | 2,4   |
+   * | Quarter (formatting)            | 120 | Q       | 1, 2, 3, 4                        |       |
+   * |                                 |     | Qo      | 1st, 2nd, 3rd, 4th                | 5     |
+   * |                                 |     | QQ      | 01, 02, 03, 04                    |       |
+   * |                                 |     | QQQ     | Q1, Q2, Q3, Q4                    |       |
+   * |                                 |     | QQQQ    | 1st quarter, 2nd quarter, ...     | 2     |
+   * |                                 |     | QQQQQ   | 1, 2, 3, 4                        | 4     |
+   * | Quarter (stand-alone)           | 120 | q       | 1, 2, 3, 4                        |       |
+   * |                                 |     | qo      | 1st, 2nd, 3rd, 4th                | 5     |
+   * |                                 |     | qq      | 01, 02, 03, 04                    |       |
+   * |                                 |     | qqq     | Q1, Q2, Q3, Q4                    |       |
+   * |                                 |     | qqqq    | 1st quarter, 2nd quarter, ...     | 2     |
+   * |                                 |     | qqqqq   | 1, 2, 3, 4                        | 3     |
+   * | Month (formatting)              | 110 | M       | 1, 2, ..., 12                     |       |
+   * |                                 |     | Mo      | 1st, 2nd, ..., 12th               | 5     |
+   * |                                 |     | MM      | 01, 02, ..., 12                   |       |
+   * |                                 |     | MMM     | Jan, Feb, ..., Dec                |       |
+   * |                                 |     | MMMM    | January, February, ..., December  | 2     |
+   * |                                 |     | MMMMM   | J, F, ..., D                      |       |
+   * | Month (stand-alone)             | 110 | L       | 1, 2, ..., 12                     |       |
+   * |                                 |     | Lo      | 1st, 2nd, ..., 12th               | 5     |
+   * |                                 |     | LL      | 01, 02, ..., 12                   |       |
+   * |                                 |     | LLL     | Jan, Feb, ..., Dec                |       |
+   * |                                 |     | LLLL    | January, February, ..., December  | 2     |
+   * |                                 |     | LLLLL   | J, F, ..., D                      |       |
+   * | Local week of year              | 100 | w       | 1, 2, ..., 53                     |       |
+   * |                                 |     | wo      | 1st, 2nd, ..., 53th               | 5     |
+   * |                                 |     | ww      | 01, 02, ..., 53                   |       |
+   * | ISO week of year                | 100 | I       | 1, 2, ..., 53                     | 5     |
+   * |                                 |     | Io      | 1st, 2nd, ..., 53th               | 5     |
+   * |                                 |     | II      | 01, 02, ..., 53                   | 5     |
+   * | Day of month                    |  90 | d       | 1, 2, ..., 31                     |       |
+   * |                                 |     | do      | 1st, 2nd, ..., 31st               | 5     |
+   * |                                 |     | dd      | 01, 02, ..., 31                   |       |
+   * | Day of year                     |  90 | D       | 1, 2, ..., 365, 366               | 7     |
+   * |                                 |     | Do      | 1st, 2nd, ..., 365th, 366th       | 5     |
+   * |                                 |     | DD      | 01, 02, ..., 365, 366             | 7     |
+   * |                                 |     | DDD     | 001, 002, ..., 365, 366           |       |
+   * |                                 |     | DDDD    | ...                               | 2     |
+   * | Day of week (formatting)        |  90 | E..EEE  | Mon, Tue, Wed, ..., Sun           |       |
+   * |                                 |     | EEEE    | Monday, Tuesday, ..., Sunday      | 2     |
+   * |                                 |     | EEEEE   | M, T, W, T, F, S, S               |       |
+   * |                                 |     | EEEEEE  | Mo, Tu, We, Th, Fr, Sa, Su        |       |
+   * | ISO day of week (formatting)    |  90 | i       | 1, 2, 3, ..., 7                   | 5     |
+   * |                                 |     | io      | 1st, 2nd, ..., 7th                | 5     |
+   * |                                 |     | ii      | 01, 02, ..., 07                   | 5     |
+   * |                                 |     | iii     | Mon, Tue, Wed, ..., Sun           | 5     |
+   * |                                 |     | iiii    | Monday, Tuesday, ..., Sunday      | 2,5   |
+   * |                                 |     | iiiii   | M, T, W, T, F, S, S               | 5     |
+   * |                                 |     | iiiiii  | Mo, Tu, We, Th, Fr, Sa, Su        | 5     |
+   * | Local day of week (formatting)  |  90 | e       | 2, 3, 4, ..., 1                   |       |
+   * |                                 |     | eo      | 2nd, 3rd, ..., 1st                | 5     |
+   * |                                 |     | ee      | 02, 03, ..., 01                   |       |
+   * |                                 |     | eee     | Mon, Tue, Wed, ..., Sun           |       |
+   * |                                 |     | eeee    | Monday, Tuesday, ..., Sunday      | 2     |
+   * |                                 |     | eeeee   | M, T, W, T, F, S, S               |       |
+   * |                                 |     | eeeeee  | Mo, Tu, We, Th, Fr, Sa, Su        |       |
+   * | Local day of week (stand-alone) |  90 | c       | 2, 3, 4, ..., 1                   |       |
+   * |                                 |     | co      | 2nd, 3rd, ..., 1st                | 5     |
+   * |                                 |     | cc      | 02, 03, ..., 01                   |       |
+   * |                                 |     | ccc     | Mon, Tue, Wed, ..., Sun           |       |
+   * |                                 |     | cccc    | Monday, Tuesday, ..., Sunday      | 2     |
+   * |                                 |     | ccccc   | M, T, W, T, F, S, S               |       |
+   * |                                 |     | cccccc  | Mo, Tu, We, Th, Fr, Sa, Su        |       |
+   * | AM, PM                          |  80 | a..aaa  | AM, PM                            |       |
+   * |                                 |     | aaaa    | a.m., p.m.                        | 2     |
+   * |                                 |     | aaaaa   | a, p                              |       |
+   * | AM, PM, noon, midnight          |  80 | b..bbb  | AM, PM, noon, midnight            |       |
+   * |                                 |     | bbbb    | a.m., p.m., noon, midnight        | 2     |
+   * |                                 |     | bbbbb   | a, p, n, mi                       |       |
+   * | Flexible day period             |  80 | B..BBB  | at night, in the morning, ...     |       |
+   * |                                 |     | BBBB    | at night, in the morning, ...     | 2     |
+   * |                                 |     | BBBBB   | at night, in the morning, ...     |       |
+   * | Hour [1-12]                     |  70 | h       | 1, 2, ..., 11, 12                 |       |
+   * |                                 |     | ho      | 1st, 2nd, ..., 11th, 12th         | 5     |
+   * |                                 |     | hh      | 01, 02, ..., 11, 12               |       |
+   * | Hour [0-23]                     |  70 | H       | 0, 1, 2, ..., 23                  |       |
+   * |                                 |     | Ho      | 0th, 1st, 2nd, ..., 23rd          | 5     |
+   * |                                 |     | HH      | 00, 01, 02, ..., 23               |       |
+   * | Hour [0-11]                     |  70 | K       | 1, 2, ..., 11, 0                  |       |
+   * |                                 |     | Ko      | 1st, 2nd, ..., 11th, 0th          | 5     |
+   * |                                 |     | KK      | 01, 02, ..., 11, 00               |       |
+   * | Hour [1-24]                     |  70 | k       | 24, 1, 2, ..., 23                 |       |
+   * |                                 |     | ko      | 24th, 1st, 2nd, ..., 23rd         | 5     |
+   * |                                 |     | kk      | 24, 01, 02, ..., 23               |       |
+   * | Minute                          |  60 | m       | 0, 1, ..., 59                     |       |
+   * |                                 |     | mo      | 0th, 1st, ..., 59th               | 5     |
+   * |                                 |     | mm      | 00, 01, ..., 59                   |       |
+   * | Second                          |  50 | s       | 0, 1, ..., 59                     |       |
+   * |                                 |     | so      | 0th, 1st, ..., 59th               | 5     |
+   * |                                 |     | ss      | 00, 01, ..., 59                   |       |
+   * | Seconds timestamp               |  40 | t       | 512969520                         |       |
+   * |                                 |     | tt      | ...                               | 2     |
+   * | Fraction of second              |  30 | S       | 0, 1, ..., 9                      |       |
+   * |                                 |     | SS      | 00, 01, ..., 99                   |       |
+   * |                                 |     | SSS     | 000, 001, ..., 999                |       |
+   * |                                 |     | SSSS    | ...                               | 2     |
+   * | Milliseconds timestamp          |  20 | T       | 512969520900                      |       |
+   * |                                 |     | TT      | ...                               | 2     |
+   * | Timezone (ISO-8601 w/ Z)        |  10 | X       | -08, +0530, Z                     |       |
+   * |                                 |     | XX      | -0800, +0530, Z                   |       |
+   * |                                 |     | XXX     | -08:00, +05:30, Z                 |       |
+   * |                                 |     | XXXX    | -0800, +0530, Z, +123456          | 2     |
+   * |                                 |     | XXXXX   | -08:00, +05:30, Z, +12:34:56      |       |
+   * | Timezone (ISO-8601 w/o Z)       |  10 | x       | -08, +0530, +00                   |       |
+   * |                                 |     | xx      | -0800, +0530, +0000               |       |
+   * |                                 |     | xxx     | -08:00, +05:30, +00:00            | 2     |
+   * |                                 |     | xxxx    | -0800, +0530, +0000, +123456      |       |
+   * |                                 |     | xxxxx   | -08:00, +05:30, +00:00, +12:34:56 |       |
+   * | Long localized date             |  NA | P       | 05/29/1453                        | 5,8   |
+   * |                                 |     | PP      | May 29, 1453                      |       |
+   * |                                 |     | PPP     | May 29th, 1453                    |       |
+   * |                                 |     | PPPP    | Sunday, May 29th, 1453            | 2,5,8 |
+   * | Long localized time             |  NA | p       | 12:00 AM                          | 5,8   |
+   * |                                 |     | pp      | 12:00:00 AM                       |       |
+   * | Combination of date and time    |  NA | Pp      | 05/29/1453, 12:00 AM              |       |
+   * |                                 |     | PPpp    | May 29, 1453, 12:00:00 AM         |       |
+   * |                                 |     | PPPpp   | May 29th, 1453 at ...             |       |
+   * |                                 |     | PPPPpp  | Sunday, May 29th, 1453 at ...     | 2,5,8 |
+   * Notes:
+   * 1. "Formatting" units (e.g. formatting quarter) in the default en-US locale
+   *    are the same as "stand-alone" units, but are different in some languages.
+   *    "Formatting" units are declined according to the rules of the language
+   *    in the context of a date. "Stand-alone" units are always nominative singular.
+   *    In `format` function, they will produce different result:
+   *
+   *    `format(new Date(2017, 10, 6), 'do LLLL', {locale: cs}) //=> '6. listopad'`
+   *
+   *    `format(new Date(2017, 10, 6), 'do MMMM', {locale: cs}) //=> '6. listopadu'`
+   *
+   *    `parse` will try to match both formatting and stand-alone units interchangeably.
+   *
+   * 2. Any sequence of the identical letters is a pattern, unless it is escaped by
+   *    the single quote characters (see below).
+   *    If the sequence is longer than listed in table:
+   *    - for numerical units (`yyyyyyyy`) `parse` will try to match a number
+   *      as wide as the sequence
+   *    - for text units (`MMMMMMMM`) `parse` will try to match the widest variation of the unit.
+   *      These variations are marked with "2" in the last column of the table.
+   *
+   * 3. `QQQQQ` and `qqqqq` could be not strictly numerical in some locales.
+   *    These tokens represent the shortest form of the quarter.
+   *
+   * 4. The main difference between `y` and `u` patterns are B.C. years:
+   *
+   *    | Year | `y` | `u` |
+   *    |------|-----|-----|
+   *    | AC 1 |   1 |   1 |
+   *    | BC 1 |   1 |   0 |
+   *    | BC 2 |   2 |  -1 |
+   *
+   *    Also `yy` will try to guess the century of two digit year by proximity with `referenceDate`:
+   *
+   *    `parse('50', 'yy', new Date(2018, 0, 1)) //=> Sat Jan 01 2050 00:00:00`
+   *
+   *    `parse('75', 'yy', new Date(2018, 0, 1)) //=> Wed Jan 01 1975 00:00:00`
+   *
+   *    while `uu` will just assign the year as is:
+   *
+   *    `parse('50', 'uu', new Date(2018, 0, 1)) //=> Sat Jan 01 0050 00:00:00`
+   *
+   *    `parse('75', 'uu', new Date(2018, 0, 1)) //=> Tue Jan 01 0075 00:00:00`
+   *
+   *    The same difference is true for local and ISO week-numbering years (`Y` and `R`),
+   *    except local week-numbering years are dependent on `options.weekStartsOn`
+   *    and `options.firstWeekContainsDate` (compare [setISOWeekYear](https://date-fns.org/docs/setISOWeekYear)
+   *    and [setWeekYear](https://date-fns.org/docs/setWeekYear)).
+   *
+   * 5. These patterns are not in the Unicode Technical Standard #35:
+   *    - `i`: ISO day of week
+   *    - `I`: ISO week of year
+   *    - `R`: ISO week-numbering year
+   *    - `o`: ordinal number modifier
+   *    - `P`: long localized date
+   *    - `p`: long localized time
+   *
+   * 6. `YY` and `YYYY` tokens represent week-numbering years but they are often confused with years.
+   *    You should enable `options.useAdditionalWeekYearTokens` to use them. See: https://github.com/date-fns/date-fns/blob/master/docs/unicodeTokens.md
+   *
+   * 7. `D` and `DD` tokens represent days of the year but they are often confused with days of the month.
+   *    You should enable `options.useAdditionalDayOfYearTokens` to use them. See: https://github.com/date-fns/date-fns/blob/master/docs/unicodeTokens.md
+   *
+   * 8. `P+` tokens do not have a defined priority since they are merely aliases to other tokens based
+   *    on the given locale.
+   *
+   *    using `en-US` locale: `P` => `MM/dd/yyyy`
+   *    using `en-US` locale: `p` => `hh:mm a`
+   *    using `pt-BR` locale: `P` => `dd/MM/yyyy`
+   *    using `pt-BR` locale: `p` => `HH:mm`
+   *
+   * Values will be assigned to the date in the descending order of its unit's priority.
+   * Units of an equal priority overwrite each other in the order of appearance.
+   *
+   * If no values of higher priority are parsed (e.g. when parsing string 'January 1st' without a year),
+   * the values will be taken from 3rd argument `referenceDate` which works as a context of parsing.
+   *
+   * `referenceDate` must be passed for correct work of the function.
+   * If you're not sure which `referenceDate` to supply, create a new instance of Date:
+   * `parse('02/11/2014', 'MM/dd/yyyy', new Date())`
+   * In this case parsing will be done in the context of the current date.
+   * If `referenceDate` is `Invalid Date` or a value not convertible to valid `Date`,
+   * then `Invalid Date` will be returned.
+   *
+   * The result may vary by locale.
+   *
+   * If `formatString` matches with `dateString` but does not provides tokens, `referenceDate` will be returned.
+   *
+   * If parsing failed, `Invalid Date` will be returned.
+   * Invalid Date is a Date, whose time value is NaN.
+   * Time value of Date: http://es5.github.io/#x15.9.1.1
+   *
+   * @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+   * @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+   *
+   * @param dateStr - The string to parse
+   * @param formatStr - The string of tokens
+   * @param referenceDate - defines values missing from the parsed dateString
+   * @param options - An object with options.
+   *   see: https://github.com/date-fns/date-fns/blob/master/docs/unicodeTokens.md
+   *   see: https://github.com/date-fns/date-fns/blob/master/docs/unicodeTokens.md
+   *
+   * @returns The parsed date
+   *
+   * @throws `options.locale` must contain `match` property
+   * @throws use `yyyy` instead of `YYYY` for formatting years using [format provided] to the input [input provided]; see: https://github.com/date-fns/date-fns/blob/master/docs/unicodeTokens.md
+   * @throws use `yy` instead of `YY` for formatting years using [format provided] to the input [input provided]; see: https://github.com/date-fns/date-fns/blob/master/docs/unicodeTokens.md
+   * @throws use `d` instead of `D` for formatting days of the month using [format provided] to the input [input provided]; see: https://github.com/date-fns/date-fns/blob/master/docs/unicodeTokens.md
+   * @throws use `dd` instead of `DD` for formatting days of the month using [format provided] to the input [input provided]; see: https://github.com/date-fns/date-fns/blob/master/docs/unicodeTokens.md
+   * @throws format string contains an unescaped latin alphabet character
+   *
+   * @example
+   * // Parse 11 February 2014 from middle-endian format:
+   * var result = parse('02/11/2014', 'MM/dd/yyyy', new Date())
+   * //=> Tue Feb 11 2014 00:00:00
+   *
+   * @example
+   * // Parse 28th of February in Esperanto locale in the context of 2010 year:
+   * import eo from 'date-fns/locale/eo'
+   * var result = parse('28-a de februaro', "do 'de' MMMM", new Date(2010, 0, 1), {
+   *   locale: eo
+   * })
+   * //=> Sun Feb 28 2010 00:00:00
+   */
+  function parse(dateStr, formatStr, referenceDate, options) {
+    const invalidDate = () => constructFrom(options?.in || referenceDate, NaN);
+    const defaultOptions = getDefaultOptions();
+    const locale = options?.locale ?? defaultOptions.locale ?? enUS;
+
+    const firstWeekContainsDate =
+      options?.firstWeekContainsDate ??
+      options?.locale?.options?.firstWeekContainsDate ??
+      defaultOptions.firstWeekContainsDate ??
+      defaultOptions.locale?.options?.firstWeekContainsDate ??
+      1;
+
+    const weekStartsOn =
+      options?.weekStartsOn ??
+      options?.locale?.options?.weekStartsOn ??
+      defaultOptions.weekStartsOn ??
+      defaultOptions.locale?.options?.weekStartsOn ??
+      0;
+
+    if (!formatStr)
+      return dateStr ? invalidDate() : toDate(referenceDate, options?.in);
+
+    const subFnOptions = {
+      firstWeekContainsDate,
+      weekStartsOn,
+      locale,
+    };
+
+    // If timezone isn't specified, it will try to use the context or
+    // the reference date and fallback to the system time zone.
+    const setters = [new DateTimezoneSetter(options?.in, referenceDate)];
+
+    const tokens = formatStr
+      .match(longFormattingTokensRegExp)
+      .map((substring) => {
+        const firstCharacter = substring[0];
+        if (firstCharacter in longFormatters) {
+          const longFormatter = longFormatters[firstCharacter];
+          return longFormatter(substring, locale.formatLong);
+        }
+        return substring;
+      })
+      .join("")
+      .match(formattingTokensRegExp);
+
+    const usedTokens = [];
+
+    for (let token of tokens) {
+      if (
+        !options?.useAdditionalWeekYearTokens &&
+        isProtectedWeekYearToken(token)
+      ) {
+        warnOrThrowProtectedError(token, formatStr, dateStr);
+      }
+      if (
+        !options?.useAdditionalDayOfYearTokens &&
+        isProtectedDayOfYearToken(token)
+      ) {
+        warnOrThrowProtectedError(token, formatStr, dateStr);
+      }
+
+      const firstCharacter = token[0];
+      const parser = parsers[firstCharacter];
+      if (parser) {
+        const { incompatibleTokens } = parser;
+        if (Array.isArray(incompatibleTokens)) {
+          const incompatibleToken = usedTokens.find(
+            (usedToken) =>
+              incompatibleTokens.includes(usedToken.token) ||
+              usedToken.token === firstCharacter,
+          );
+          if (incompatibleToken) {
+            throw new RangeError(
+              `The format string mustn't contain \`${incompatibleToken.fullToken}\` and \`${token}\` at the same time`,
+            );
+          }
+        } else if (parser.incompatibleTokens === "*" && usedTokens.length > 0) {
+          throw new RangeError(
+            `The format string mustn't contain \`${token}\` and any other token at the same time`,
+          );
+        }
+
+        usedTokens.push({ token: firstCharacter, fullToken: token });
+
+        const parseResult = parser.run(
+          dateStr,
+          token,
+          locale.match,
+          subFnOptions,
+        );
+
+        if (!parseResult) {
+          return invalidDate();
+        }
+
+        setters.push(parseResult.setter);
+
+        dateStr = parseResult.rest;
+      } else {
+        if (firstCharacter.match(unescapedLatinCharacterRegExp)) {
+          throw new RangeError(
+            "Format string contains an unescaped latin alphabet character `" +
+              firstCharacter +
+              "`",
+          );
+        }
+
+        // Replace two single quote characters with one single quote character
+        if (token === "''") {
+          token = "'";
+        } else if (firstCharacter === "'") {
+          token = cleanEscapedString(token);
+        }
+
+        // Cut token from string, or, if string doesn't match the token, return Invalid Date
+        if (dateStr.indexOf(token) === 0) {
+          dateStr = dateStr.slice(token.length);
+        } else {
+          return invalidDate();
+        }
+      }
+    }
+
+    // Check if the remaining input contains something other than whitespace
+    if (dateStr.length > 0 && notWhitespaceRegExp.test(dateStr)) {
+      return invalidDate();
+    }
+
+    const uniquePrioritySetters = setters
+      .map((setter) => setter.priority)
+      .sort((a, b) => b - a)
+      .filter((priority, index, array) => array.indexOf(priority) === index)
+      .map((priority) =>
+        setters
+          .filter((setter) => setter.priority === priority)
+          .sort((a, b) => b.subPriority - a.subPriority),
+      )
+      .map((setterArray) => setterArray[0]);
+
+    let date = toDate(referenceDate, options?.in);
+
+    if (isNaN(+date)) return invalidDate();
+
+    const flags = {};
+    for (const setter of uniquePrioritySetters) {
+      if (!setter.validate(date, subFnOptions)) {
+        return invalidDate();
+      }
+
+      const result = setter.set(date, flags, subFnOptions);
+      // Result is tuple (date, flags)
+      if (Array.isArray(result)) {
+        date = result[0];
+        Object.assign(flags, result[1]);
+        // Result is date
+      } else {
+        date = result;
+      }
+    }
+
+    return date;
+  }
+
+  function cleanEscapedString(input) {
+    return input.match(escapedStringRegExp)[1].replace(doubleQuoteRegExp, "'");
+  }
+
+  /**
+   * The {@link startOfHour} function options.
+   */
+
+  /**
+   * @name startOfHour
+   * @category Hour Helpers
+   * @summary Return the start of an hour for the given date.
+   *
+   * @description
+   * Return the start of an hour for the given date.
+   * The result will be in the local timezone.
+   *
+   * @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+   * @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+   *
+   * @param date - The original date
+   * @param options - An object with options
+   *
+   * @returns The start of an hour
+   *
+   * @example
+   * // The start of an hour for 2 September 2014 11:55:00:
+   * const result = startOfHour(new Date(2014, 8, 2, 11, 55))
+   * //=> Tue Sep 02 2014 11:00:00
+   */
+  function startOfHour(date, options) {
+    const _date = toDate(date, options?.in);
+    _date.setMinutes(0, 0, 0);
+    return _date;
+  }
+
+  /**
+   * The {@link startOfMinute} function options.
+   */
+
+  /**
+   * @name startOfMinute
+   * @category Minute Helpers
+   * @summary Return the start of a minute for the given date.
+   *
+   * @description
+   * Return the start of a minute for the given date.
+   * The result will be in the local timezone.
+   *
+   * @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+   * @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+   *
+   * @param date - The original date
+   * @param options - An object with options
+   *
+   * @returns The start of a minute
+   *
+   * @example
+   * // The start of a minute for 1 December 2014 22:15:45.400:
+   * const result = startOfMinute(new Date(2014, 11, 1, 22, 15, 45, 400))
+   * //=> Mon Dec 01 2014 22:15:00
+   */
+  function startOfMinute(date, options) {
+    const date_ = toDate(date, options?.in);
+    date_.setSeconds(0, 0);
+    return date_;
+  }
+
+  /**
+   * The {@link startOfSecond} function options.
+   */
+
+  /**
+   * @name startOfSecond
+   * @category Second Helpers
+   * @summary Return the start of a second for the given date.
+   *
+   * @description
+   * Return the start of a second for the given date.
+   * The result will be in the local timezone.
+   *
+   * @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+   * @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+   *
+   * @param date - The original date
+   * @param options - The options
+   *
+   * @returns The start of a second
+   *
+   * @example
+   * // The start of a second for 1 December 2014 22:15:45.400:
+   * const result = startOfSecond(new Date(2014, 11, 1, 22, 15, 45, 400))
+   * //=> Mon Dec 01 2014 22:15:45.000
+   */
+  function startOfSecond(date, options) {
+    const date_ = toDate(date, options?.in);
+    date_.setMilliseconds(0);
+    return date_;
+  }
+
+  /**
+   * The {@link parseISO} function options.
+   */
+
+  /**
+   * @name parseISO
+   * @category Common Helpers
+   * @summary Parse ISO string
+   *
+   * @description
+   * Parse the given string in ISO 8601 format and return an instance of Date.
+   *
+   * Function accepts complete ISO 8601 formats as well as partial implementations.
+   * ISO 8601: http://en.wikipedia.org/wiki/ISO_8601
+   *
+   * If the argument isn't a string, the function cannot parse the string or
+   * the values are invalid, it returns Invalid Date.
+   *
+   * @typeParam DateType - The `Date` type, the function operates on. Gets inferred from passed arguments. Allows to use extensions like [`UTCDate`](https://github.com/date-fns/utc).
+   * @typeParam ResultDate - The result `Date` type, it is the type returned from the context function if it is passed, or inferred from the arguments.
+   *
+   * @param argument - The value to convert
+   * @param options - An object with options
+   *
+   * @returns The parsed date in the local time zone
+   *
+   * @example
+   * // Convert string '2014-02-11T11:30:30' to date:
+   * const result = parseISO('2014-02-11T11:30:30')
+   * //=> Tue Feb 11 2014 11:30:30
+   *
+   * @example
+   * // Convert string '+02014101' to date,
+   * // if the additional number of digits in the extended year format is 1:
+   * const result = parseISO('+02014101', { additionalDigits: 1 })
+   * //=> Fri Apr 11 2014 00:00:00
+   */
+  function parseISO(argument, options) {
+    const invalidDate = () => constructFrom(options?.in, NaN);
+
+    const additionalDigits = options?.additionalDigits ?? 2;
+    const dateStrings = splitDateString(argument);
+
+    let date;
+    if (dateStrings.date) {
+      const parseYearResult = parseYear(dateStrings.date, additionalDigits);
+      date = parseDate(parseYearResult.restDateString, parseYearResult.year);
+    }
+
+    if (!date || isNaN(+date)) return invalidDate();
+
+    const timestamp = +date;
+    let time = 0;
+    let offset;
+
+    if (dateStrings.time) {
+      time = parseTime(dateStrings.time);
+      if (isNaN(time)) return invalidDate();
+    }
+
+    if (dateStrings.timezone) {
+      offset = parseTimezone(dateStrings.timezone);
+      if (isNaN(offset)) return invalidDate();
+    } else {
+      const tmpDate = new Date(timestamp + time);
+      const result = toDate(0, options?.in);
+      result.setFullYear(
+        tmpDate.getUTCFullYear(),
+        tmpDate.getUTCMonth(),
+        tmpDate.getUTCDate(),
+      );
+      result.setHours(
+        tmpDate.getUTCHours(),
+        tmpDate.getUTCMinutes(),
+        tmpDate.getUTCSeconds(),
+        tmpDate.getUTCMilliseconds(),
+      );
+      return result;
+    }
+
+    return toDate(timestamp + time + offset, options?.in);
+  }
+
+  const patterns = {
+    dateTimeDelimiter: /[T ]/,
+    timeZoneDelimiter: /[Z ]/i,
+    timezone: /([Z+-].*)$/,
+  };
+
+  const dateRegex =
+    /^-?(?:(\d{3})|(\d{2})(?:-?(\d{2}))?|W(\d{2})(?:-?(\d{1}))?|)$/;
+  const timeRegex =
+    /^(\d{2}(?:[.,]\d*)?)(?::?(\d{2}(?:[.,]\d*)?))?(?::?(\d{2}(?:[.,]\d*)?))?$/;
+  const timezoneRegex = /^([+-])(\d{2})(?::?(\d{2}))?$/;
+
+  function splitDateString(dateString) {
+    const dateStrings = {};
+    const array = dateString.split(patterns.dateTimeDelimiter);
+    let timeString;
+
+    // The regex match should only return at maximum two array elements.
+    // [date], [time], or [date, time].
+    if (array.length > 2) {
+      return dateStrings;
+    }
+
+    if (/:/.test(array[0])) {
+      timeString = array[0];
+    } else {
+      dateStrings.date = array[0];
+      timeString = array[1];
+      if (patterns.timeZoneDelimiter.test(dateStrings.date)) {
+        dateStrings.date = dateString.split(patterns.timeZoneDelimiter)[0];
+        timeString = dateString.substr(
+          dateStrings.date.length,
+          dateString.length,
+        );
+      }
+    }
+
+    if (timeString) {
+      const token = patterns.timezone.exec(timeString);
+      if (token) {
+        dateStrings.time = timeString.replace(token[1], "");
+        dateStrings.timezone = token[1];
+      } else {
+        dateStrings.time = timeString;
+      }
+    }
+
+    return dateStrings;
+  }
+
+  function parseYear(dateString, additionalDigits) {
+    const regex = new RegExp(
+      "^(?:(\\d{4}|[+-]\\d{" +
+        (4 + additionalDigits) +
+        "})|(\\d{2}|[+-]\\d{" +
+        (2 + additionalDigits) +
+        "})$)",
+    );
+
+    const captures = dateString.match(regex);
+    // Invalid ISO-formatted year
+    if (!captures) return { year: NaN, restDateString: "" };
+
+    const year = captures[1] ? parseInt(captures[1]) : null;
+    const century = captures[2] ? parseInt(captures[2]) : null;
+
+    // either year or century is null, not both
+    return {
+      year: century === null ? year : century * 100,
+      restDateString: dateString.slice((captures[1] || captures[2]).length),
+    };
+  }
+
+  function parseDate(dateString, year) {
+    // Invalid ISO-formatted year
+    if (year === null) return new Date(NaN);
+
+    const captures = dateString.match(dateRegex);
+    // Invalid ISO-formatted string
+    if (!captures) return new Date(NaN);
+
+    const isWeekDate = !!captures[4];
+    const dayOfYear = parseDateUnit(captures[1]);
+    const month = parseDateUnit(captures[2]) - 1;
+    const day = parseDateUnit(captures[3]);
+    const week = parseDateUnit(captures[4]);
+    const dayOfWeek = parseDateUnit(captures[5]) - 1;
+
+    if (isWeekDate) {
+      if (!validateWeekDate(year, week, dayOfWeek)) {
+        return new Date(NaN);
+      }
+      return dayOfISOWeekYear(year, week, dayOfWeek);
+    } else {
+      const date = new Date(0);
+      if (
+        !validateDate(year, month, day) ||
+        !validateDayOfYearDate(year, dayOfYear)
+      ) {
+        return new Date(NaN);
+      }
+      date.setUTCFullYear(year, month, Math.max(dayOfYear, day));
+      return date;
+    }
+  }
+
+  function parseDateUnit(value) {
+    return value ? parseInt(value) : 1;
+  }
+
+  function parseTime(timeString) {
+    const captures = timeString.match(timeRegex);
+    if (!captures) return NaN; // Invalid ISO-formatted time
+
+    const hours = parseTimeUnit(captures[1]);
+    const minutes = parseTimeUnit(captures[2]);
+    const seconds = parseTimeUnit(captures[3]);
+
+    if (!validateTime(hours, minutes, seconds)) {
+      return NaN;
+    }
+
+    return (
+      hours * millisecondsInHour + minutes * millisecondsInMinute + seconds * 1000
+    );
+  }
+
+  function parseTimeUnit(value) {
+    return (value && parseFloat(value.replace(",", "."))) || 0;
+  }
+
+  function parseTimezone(timezoneString) {
+    if (timezoneString === "Z") return 0;
+
+    const captures = timezoneString.match(timezoneRegex);
+    if (!captures) return 0;
+
+    const sign = captures[1] === "+" ? -1 : 1;
+    const hours = parseInt(captures[2]);
+    const minutes = (captures[3] && parseInt(captures[3])) || 0;
+
+    if (!validateTimezone(hours, minutes)) {
+      return NaN;
+    }
+
+    return sign * (hours * millisecondsInHour + minutes * millisecondsInMinute);
+  }
+
+  function dayOfISOWeekYear(isoWeekYear, week, day) {
+    const date = new Date(0);
+    date.setUTCFullYear(isoWeekYear, 0, 4);
+    const fourthOfJanuaryDay = date.getUTCDay() || 7;
+    const diff = (week - 1) * 7 + day + 1 - fourthOfJanuaryDay;
+    date.setUTCDate(date.getUTCDate() + diff);
+    return date;
+  }
+
+  // Validation functions
+
+  // February is null to handle the leap year (using ||)
+  const daysInMonths = [31, null, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+  function isLeapYearIndex(year) {
+    return year % 400 === 0 || (year % 4 === 0 && year % 100 !== 0);
+  }
+
+  function validateDate(year, month, date) {
+    return (
+      month >= 0 &&
+      month <= 11 &&
+      date >= 1 &&
+      date <= (daysInMonths[month] || (isLeapYearIndex(year) ? 29 : 28))
+    );
+  }
+
+  function validateDayOfYearDate(year, dayOfYear) {
+    return dayOfYear >= 1 && dayOfYear <= (isLeapYearIndex(year) ? 366 : 365);
+  }
+
+  function validateWeekDate(_year, week, day) {
+    return week >= 1 && week <= 53 && day >= 0 && day <= 6;
+  }
+
+  function validateTime(hours, minutes, seconds) {
+    if (hours === 24) {
+      return minutes === 0 && seconds === 0;
+    }
+
+    return (
+      seconds >= 0 &&
+      seconds < 60 &&
+      minutes >= 0 &&
+      minutes < 60 &&
+      hours >= 0 &&
+      hours < 25
+    );
+  }
+
+  function validateTimezone(_hours, minutes) {
+    return minutes >= 0 && minutes <= 59;
+  }
+
+  /*!
+   * chartjs-adapter-date-fns v3.0.0
+   * https://www.chartjs.org
+   * (c) 2022 chartjs-adapter-date-fns Contributors
+   * Released under the MIT license
+   */
+
+  const FORMATS = {
+    datetime: 'MMM d, yyyy, h:mm:ss aaaa',
+    millisecond: 'h:mm:ss.SSS aaaa',
+    second: 'h:mm:ss aaaa',
+    minute: 'h:mm aaaa',
+    hour: 'ha',
+    day: 'MMM d',
+    week: 'PP',
+    month: 'MMM yyyy',
+    quarter: 'qqq - yyyy',
+    year: 'yyyy'
+  };
+
+  adapters._date.override({
+    _id: 'date-fns', // DEBUG
+
+    formats: function() {
+      return FORMATS;
+    },
+
+    parse: function(value, fmt) {
+      if (value === null || typeof value === 'undefined') {
+        return null;
+      }
+      const type = typeof value;
+      if (type === 'number' || value instanceof Date) {
+        value = toDate(value);
+      } else if (type === 'string') {
+        if (typeof fmt === 'string') {
+          value = parse(value, fmt, new Date(), this.options);
+        } else {
+          value = parseISO(value, this.options);
+        }
+      }
+      return isValid(value) ? value.getTime() : null;
+    },
+
+    format: function(time, fmt) {
+      return format(time, fmt, this.options);
+    },
+
+    add: function(time, amount, unit) {
+      switch (unit) {
+      case 'millisecond': return addMilliseconds(time, amount);
+      case 'second': return addSeconds(time, amount);
+      case 'minute': return addMinutes(time, amount);
+      case 'hour': return addHours(time, amount);
+      case 'day': return addDays(time, amount);
+      case 'week': return addWeeks(time, amount);
+      case 'month': return addMonths(time, amount);
+      case 'quarter': return addQuarters(time, amount);
+      case 'year': return addYears(time, amount);
+      default: return time;
+      }
+    },
+
+    diff: function(max, min, unit) {
+      switch (unit) {
+      case 'millisecond': return differenceInMilliseconds(max, min);
+      case 'second': return differenceInSeconds(max, min);
+      case 'minute': return differenceInMinutes(max, min);
+      case 'hour': return differenceInHours(max, min);
+      case 'day': return differenceInDays(max, min);
+      case 'week': return differenceInWeeks(max, min);
+      case 'month': return differenceInMonths(max, min);
+      case 'quarter': return differenceInQuarters(max, min);
+      case 'year': return differenceInYears(max, min);
+      default: return 0;
+      }
+    },
+
+    startOf: function(time, unit, weekday) {
+      switch (unit) {
+      case 'second': return startOfSecond(time);
+      case 'minute': return startOfMinute(time);
+      case 'hour': return startOfHour(time);
+      case 'day': return startOfDay(time);
+      case 'week': return startOfWeek(time);
+      case 'isoWeek': return startOfWeek(time, {weekStartsOn: +weekday});
+      case 'month': return startOfMonth(time);
+      case 'quarter': return startOfQuarter(time);
+      case 'year': return startOfYear(time);
+      default: return time;
+      }
+    },
+
+    endOf: function(time, unit) {
+      switch (unit) {
+      case 'second': return endOfSecond(time);
+      case 'minute': return endOfMinute(time);
+      case 'hour': return endOfHour(time);
+      case 'day': return endOfDay(time);
+      case 'week': return endOfWeek(time);
+      case 'month': return endOfMonth(time);
+      case 'quarter': return endOfQuarter(time);
+      case 'year': return endOfYear(time);
+      default: return time;
+      }
+    }
+  });
+
+  /**
    * @license
    * Copyright 2019 Google LLC
    * SPDX-License-Identifier: BSD-3-Clause
    */
-  const t$1=window.ShadowRoot&&(void 0===window.ShadyCSS||window.ShadyCSS.nativeShadow)&&"adoptedStyleSheets"in Document.prototype&&"replace"in CSSStyleSheet.prototype,e$2=Symbol(),n$3=new Map;class s$3{constructor(t,n){if(this._$cssResult$=!0,n!==e$2)throw Error("CSSResult is not constructable. Use `unsafeCSS` or `css` instead.");this.cssText=t;}get styleSheet(){let e=n$3.get(this.cssText);return t$1&&void 0===e&&(n$3.set(this.cssText,e=new CSSStyleSheet),e.replaceSync(this.cssText)),e}toString(){return this.cssText}}const o$3=t=>new s$3("string"==typeof t?t:t+"",e$2),i$1=(e,n)=>{t$1?e.adoptedStyleSheets=n.map((t=>t instanceof CSSStyleSheet?t:t.styleSheet)):n.forEach((t=>{const n=document.createElement("style"),s=window.litNonce;void 0!==s&&n.setAttribute("nonce",s),n.textContent=t.cssText,e.appendChild(n);}));},S$1=t$1?t=>t:t=>t instanceof CSSStyleSheet?(t=>{let e="";for(const n of t.cssRules)e+=n.cssText;return o$3(e)})(t):t;
+  const t$1=window,e$2=t$1.ShadowRoot&&(void 0===t$1.ShadyCSS||t$1.ShadyCSS.nativeShadow)&&"adoptedStyleSheets"in Document.prototype&&"replace"in CSSStyleSheet.prototype,s$3=Symbol(),n$3=new WeakMap;class o$3{constructor(t,e,n){if(this._$cssResult$=!0,n!==s$3)throw Error("CSSResult is not constructable. Use `unsafeCSS` or `css` instead.");this.cssText=t,this.t=e;}get styleSheet(){let t=this.o;const s=this.t;if(e$2&&void 0===t){const e=void 0!==s&&1===s.length;e&&(t=n$3.get(s)),void 0===t&&((this.o=t=new CSSStyleSheet).replaceSync(this.cssText),e&&n$3.set(s,t));}return t}toString(){return this.cssText}}const r$2=t=>new o$3("string"==typeof t?t:t+"",void 0,s$3),S$1=(s,n)=>{e$2?s.adoptedStyleSheets=n.map((t=>t instanceof CSSStyleSheet?t:t.styleSheet)):n.forEach((e=>{const n=document.createElement("style"),o=t$1.litNonce;void 0!==o&&n.setAttribute("nonce",o),n.textContent=e.cssText,s.appendChild(n);}));},c$1=e$2?t=>t:t=>t instanceof CSSStyleSheet?(t=>{let e="";for(const s of t.cssRules)e+=s.cssText;return r$2(e)})(t):t;
 
   /**
    * @license
    * Copyright 2017 Google LLC
    * SPDX-License-Identifier: BSD-3-Clause
-   */var s$2;const e$1=window.trustedTypes,r$1=e$1?e$1.emptyScript:"",h$1=window.reactiveElementPolyfillSupport,o$2={toAttribute(t,i){switch(i){case Boolean:t=t?r$1:null;break;case Object:case Array:t=null==t?t:JSON.stringify(t);}return t},fromAttribute(t,i){let s=t;switch(i){case Boolean:s=null!==t;break;case Number:s=null===t?null:Number(t);break;case Object:case Array:try{s=JSON.parse(t);}catch(t){s=null;}}return s}},n$2=(t,i)=>i!==t&&(i==i||t==t),l$2={attribute:!0,type:String,converter:o$2,reflect:!1,hasChanged:n$2};class a$1 extends HTMLElement{constructor(){super(),this._$Et=new Map,this.isUpdatePending=!1,this.hasUpdated=!1,this._$Ei=null,this.o();}static addInitializer(t){var i;null!==(i=this.l)&&void 0!==i||(this.l=[]),this.l.push(t);}static get observedAttributes(){this.finalize();const t=[];return this.elementProperties.forEach(((i,s)=>{const e=this._$Eh(s,i);void 0!==e&&(this._$Eu.set(e,s),t.push(e));})),t}static createProperty(t,i=l$2){if(i.state&&(i.attribute=!1),this.finalize(),this.elementProperties.set(t,i),!i.noAccessor&&!this.prototype.hasOwnProperty(t)){const s="symbol"==typeof t?Symbol():"__"+t,e=this.getPropertyDescriptor(t,s,i);void 0!==e&&Object.defineProperty(this.prototype,t,e);}}static getPropertyDescriptor(t,i,s){return {get(){return this[i]},set(e){const r=this[t];this[i]=e,this.requestUpdate(t,r,s);},configurable:!0,enumerable:!0}}static getPropertyOptions(t){return this.elementProperties.get(t)||l$2}static finalize(){if(this.hasOwnProperty("finalized"))return !1;this.finalized=!0;const t=Object.getPrototypeOf(this);if(t.finalize(),this.elementProperties=new Map(t.elementProperties),this._$Eu=new Map,this.hasOwnProperty("properties")){const t=this.properties,i=[...Object.getOwnPropertyNames(t),...Object.getOwnPropertySymbols(t)];for(const s of i)this.createProperty(s,t[s]);}return this.elementStyles=this.finalizeStyles(this.styles),!0}static finalizeStyles(i){const s=[];if(Array.isArray(i)){const e=new Set(i.flat(1/0).reverse());for(const i of e)s.unshift(S$1(i));}else void 0!==i&&s.push(S$1(i));return s}static _$Eh(t,i){const s=i.attribute;return !1===s?void 0:"string"==typeof s?s:"string"==typeof t?t.toLowerCase():void 0}o(){var t;this._$Ep=new Promise((t=>this.enableUpdating=t)),this._$AL=new Map,this._$Em(),this.requestUpdate(),null===(t=this.constructor.l)||void 0===t||t.forEach((t=>t(this)));}addController(t){var i,s;(null!==(i=this._$Eg)&&void 0!==i?i:this._$Eg=[]).push(t),void 0!==this.renderRoot&&this.isConnected&&(null===(s=t.hostConnected)||void 0===s||s.call(t));}removeController(t){var i;null===(i=this._$Eg)||void 0===i||i.splice(this._$Eg.indexOf(t)>>>0,1);}_$Em(){this.constructor.elementProperties.forEach(((t,i)=>{this.hasOwnProperty(i)&&(this._$Et.set(i,this[i]),delete this[i]);}));}createRenderRoot(){var t;const s=null!==(t=this.shadowRoot)&&void 0!==t?t:this.attachShadow(this.constructor.shadowRootOptions);return i$1(s,this.constructor.elementStyles),s}connectedCallback(){var t;void 0===this.renderRoot&&(this.renderRoot=this.createRenderRoot()),this.enableUpdating(!0),null===(t=this._$Eg)||void 0===t||t.forEach((t=>{var i;return null===(i=t.hostConnected)||void 0===i?void 0:i.call(t)}));}enableUpdating(t){}disconnectedCallback(){var t;null===(t=this._$Eg)||void 0===t||t.forEach((t=>{var i;return null===(i=t.hostDisconnected)||void 0===i?void 0:i.call(t)}));}attributeChangedCallback(t,i,s){this._$AK(t,s);}_$ES(t,i,s=l$2){var e,r;const h=this.constructor._$Eh(t,s);if(void 0!==h&&!0===s.reflect){const n=(null!==(r=null===(e=s.converter)||void 0===e?void 0:e.toAttribute)&&void 0!==r?r:o$2.toAttribute)(i,s.type);this._$Ei=t,null==n?this.removeAttribute(h):this.setAttribute(h,n),this._$Ei=null;}}_$AK(t,i){var s,e,r;const h=this.constructor,n=h._$Eu.get(t);if(void 0!==n&&this._$Ei!==n){const t=h.getPropertyOptions(n),l=t.converter,a=null!==(r=null!==(e=null===(s=l)||void 0===s?void 0:s.fromAttribute)&&void 0!==e?e:"function"==typeof l?l:null)&&void 0!==r?r:o$2.fromAttribute;this._$Ei=n,this[n]=a(i,t.type),this._$Ei=null;}}requestUpdate(t,i,s){let e=!0;void 0!==t&&(((s=s||this.constructor.getPropertyOptions(t)).hasChanged||n$2)(this[t],i)?(this._$AL.has(t)||this._$AL.set(t,i),!0===s.reflect&&this._$Ei!==t&&(void 0===this._$E_&&(this._$E_=new Map),this._$E_.set(t,s))):e=!1),!this.isUpdatePending&&e&&(this._$Ep=this._$EC());}async _$EC(){this.isUpdatePending=!0;try{await this._$Ep;}catch(t){Promise.reject(t);}const t=this.scheduleUpdate();return null!=t&&await t,!this.isUpdatePending}scheduleUpdate(){return this.performUpdate()}performUpdate(){var t;if(!this.isUpdatePending)return;this.hasUpdated,this._$Et&&(this._$Et.forEach(((t,i)=>this[i]=t)),this._$Et=void 0);let i=!1;const s=this._$AL;try{i=this.shouldUpdate(s),i?(this.willUpdate(s),null===(t=this._$Eg)||void 0===t||t.forEach((t=>{var i;return null===(i=t.hostUpdate)||void 0===i?void 0:i.call(t)})),this.update(s)):this._$EU();}catch(t){throw i=!1,this._$EU(),t}i&&this._$AE(s);}willUpdate(t){}_$AE(t){var i;null===(i=this._$Eg)||void 0===i||i.forEach((t=>{var i;return null===(i=t.hostUpdated)||void 0===i?void 0:i.call(t)})),this.hasUpdated||(this.hasUpdated=!0,this.firstUpdated(t)),this.updated(t);}_$EU(){this._$AL=new Map,this.isUpdatePending=!1;}get updateComplete(){return this.getUpdateComplete()}getUpdateComplete(){return this._$Ep}shouldUpdate(t){return !0}update(t){void 0!==this._$E_&&(this._$E_.forEach(((t,i)=>this._$ES(i,this[i],t))),this._$E_=void 0),this._$EU();}updated(t){}firstUpdated(t){}}a$1.finalized=!0,a$1.elementProperties=new Map,a$1.elementStyles=[],a$1.shadowRootOptions={mode:"open"},null==h$1||h$1({ReactiveElement:a$1}),(null!==(s$2=globalThis.reactiveElementVersions)&&void 0!==s$2?s$2:globalThis.reactiveElementVersions=[]).push("1.1.1");
+   */var s$2;const e$1=window,r$1=e$1.trustedTypes,h$1=r$1?r$1.emptyScript:"",o$2=e$1.reactiveElementPolyfillSupport,n$2={toAttribute(t,i){switch(i){case Boolean:t=t?h$1:null;break;case Object:case Array:t=null==t?t:JSON.stringify(t);}return t},fromAttribute(t,i){let s=t;switch(i){case Boolean:s=null!==t;break;case Number:s=null===t?null:Number(t);break;case Object:case Array:try{s=JSON.parse(t);}catch(t){s=null;}}return s}},a$1=(t,i)=>i!==t&&(i==i||t==t),l$2={attribute:!0,type:String,converter:n$2,reflect:!1,hasChanged:a$1},d$1="finalized";class u$1 extends HTMLElement{constructor(){super(),this._$Ei=new Map,this.isUpdatePending=!1,this.hasUpdated=!1,this._$El=null,this._$Eu();}static addInitializer(t){var i;this.finalize(),(null!==(i=this.h)&&void 0!==i?i:this.h=[]).push(t);}static get observedAttributes(){this.finalize();const t=[];return this.elementProperties.forEach(((i,s)=>{const e=this._$Ep(s,i);void 0!==e&&(this._$Ev.set(e,s),t.push(e));})),t}static createProperty(t,i=l$2){if(i.state&&(i.attribute=!1),this.finalize(),this.elementProperties.set(t,i),!i.noAccessor&&!this.prototype.hasOwnProperty(t)){const s="symbol"==typeof t?Symbol():"__"+t,e=this.getPropertyDescriptor(t,s,i);void 0!==e&&Object.defineProperty(this.prototype,t,e);}}static getPropertyDescriptor(t,i,s){return {get(){return this[i]},set(e){const r=this[t];this[i]=e,this.requestUpdate(t,r,s);},configurable:!0,enumerable:!0}}static getPropertyOptions(t){return this.elementProperties.get(t)||l$2}static finalize(){if(this.hasOwnProperty(d$1))return !1;this[d$1]=!0;const t=Object.getPrototypeOf(this);if(t.finalize(),void 0!==t.h&&(this.h=[...t.h]),this.elementProperties=new Map(t.elementProperties),this._$Ev=new Map,this.hasOwnProperty("properties")){const t=this.properties,i=[...Object.getOwnPropertyNames(t),...Object.getOwnPropertySymbols(t)];for(const s of i)this.createProperty(s,t[s]);}return this.elementStyles=this.finalizeStyles(this.styles),!0}static finalizeStyles(i){const s=[];if(Array.isArray(i)){const e=new Set(i.flat(1/0).reverse());for(const i of e)s.unshift(c$1(i));}else void 0!==i&&s.push(c$1(i));return s}static _$Ep(t,i){const s=i.attribute;return !1===s?void 0:"string"==typeof s?s:"string"==typeof t?t.toLowerCase():void 0}_$Eu(){var t;this._$E_=new Promise((t=>this.enableUpdating=t)),this._$AL=new Map,this._$Eg(),this.requestUpdate(),null===(t=this.constructor.h)||void 0===t||t.forEach((t=>t(this)));}addController(t){var i,s;(null!==(i=this._$ES)&&void 0!==i?i:this._$ES=[]).push(t),void 0!==this.renderRoot&&this.isConnected&&(null===(s=t.hostConnected)||void 0===s||s.call(t));}removeController(t){var i;null===(i=this._$ES)||void 0===i||i.splice(this._$ES.indexOf(t)>>>0,1);}_$Eg(){this.constructor.elementProperties.forEach(((t,i)=>{this.hasOwnProperty(i)&&(this._$Ei.set(i,this[i]),delete this[i]);}));}createRenderRoot(){var t;const s=null!==(t=this.shadowRoot)&&void 0!==t?t:this.attachShadow(this.constructor.shadowRootOptions);return S$1(s,this.constructor.elementStyles),s}connectedCallback(){var t;void 0===this.renderRoot&&(this.renderRoot=this.createRenderRoot()),this.enableUpdating(!0),null===(t=this._$ES)||void 0===t||t.forEach((t=>{var i;return null===(i=t.hostConnected)||void 0===i?void 0:i.call(t)}));}enableUpdating(t){}disconnectedCallback(){var t;null===(t=this._$ES)||void 0===t||t.forEach((t=>{var i;return null===(i=t.hostDisconnected)||void 0===i?void 0:i.call(t)}));}attributeChangedCallback(t,i,s){this._$AK(t,s);}_$EO(t,i,s=l$2){var e;const r=this.constructor._$Ep(t,s);if(void 0!==r&&!0===s.reflect){const h=(void 0!==(null===(e=s.converter)||void 0===e?void 0:e.toAttribute)?s.converter:n$2).toAttribute(i,s.type);this._$El=t,null==h?this.removeAttribute(r):this.setAttribute(r,h),this._$El=null;}}_$AK(t,i){var s;const e=this.constructor,r=e._$Ev.get(t);if(void 0!==r&&this._$El!==r){const t=e.getPropertyOptions(r),h="function"==typeof t.converter?{fromAttribute:t.converter}:void 0!==(null===(s=t.converter)||void 0===s?void 0:s.fromAttribute)?t.converter:n$2;this._$El=r,this[r]=h.fromAttribute(i,t.type),this._$El=null;}}requestUpdate(t,i,s){let e=!0;void 0!==t&&(((s=s||this.constructor.getPropertyOptions(t)).hasChanged||a$1)(this[t],i)?(this._$AL.has(t)||this._$AL.set(t,i),!0===s.reflect&&this._$El!==t&&(void 0===this._$EC&&(this._$EC=new Map),this._$EC.set(t,s))):e=!1),!this.isUpdatePending&&e&&(this._$E_=this._$Ej());}async _$Ej(){this.isUpdatePending=!0;try{await this._$E_;}catch(t){Promise.reject(t);}const t=this.scheduleUpdate();return null!=t&&await t,!this.isUpdatePending}scheduleUpdate(){return this.performUpdate()}performUpdate(){var t;if(!this.isUpdatePending)return;this.hasUpdated,this._$Ei&&(this._$Ei.forEach(((t,i)=>this[i]=t)),this._$Ei=void 0);let i=!1;const s=this._$AL;try{i=this.shouldUpdate(s),i?(this.willUpdate(s),null===(t=this._$ES)||void 0===t||t.forEach((t=>{var i;return null===(i=t.hostUpdate)||void 0===i?void 0:i.call(t)})),this.update(s)):this._$Ek();}catch(t){throw i=!1,this._$Ek(),t}i&&this._$AE(s);}willUpdate(t){}_$AE(t){var i;null===(i=this._$ES)||void 0===i||i.forEach((t=>{var i;return null===(i=t.hostUpdated)||void 0===i?void 0:i.call(t)})),this.hasUpdated||(this.hasUpdated=!0,this.firstUpdated(t)),this.updated(t);}_$Ek(){this._$AL=new Map,this.isUpdatePending=!1;}get updateComplete(){return this.getUpdateComplete()}getUpdateComplete(){return this._$E_}shouldUpdate(t){return !0}update(t){void 0!==this._$EC&&(this._$EC.forEach(((t,i)=>this._$EO(i,this[i],t))),this._$EC=void 0),this._$Ek();}updated(t){}firstUpdated(t){}}u$1[d$1]=!0,u$1.elementProperties=new Map,u$1.elementStyles=[],u$1.shadowRootOptions={mode:"open"},null==o$2||o$2({ReactiveElement:u$1}),(null!==(s$2=e$1.reactiveElementVersions)&&void 0!==s$2?s$2:e$1.reactiveElementVersions=[]).push("1.6.3");
 
   /**
    * @license
    * Copyright 2017 Google LLC
    * SPDX-License-Identifier: BSD-3-Clause
    */
-  var t;const i=globalThis.trustedTypes,s$1=i?i.createPolicy("lit-html",{createHTML:t=>t}):void 0,e=`lit$${(Math.random()+"").slice(9)}$`,o$1="?"+e,n$1=`<${o$1}>`,l$1=document,h=(t="")=>l$1.createComment(t),r=t=>null===t||"object"!=typeof t&&"function"!=typeof t,d=Array.isArray,u=t=>{var i;return d(t)||"function"==typeof(null===(i=t)||void 0===i?void 0:i[Symbol.iterator])},c=/<(?:(!--|\/[^a-zA-Z])|(\/?[a-zA-Z][^>\s]*)|(\/?$))/g,v=/-->/g,a=/>/g,f=/>|[ 	\n\r](?:([^\s"'>=/]+)([ 	\n\r]*=[ 	\n\r]*(?:[^ 	\n\r"'`<>=]|("|')|))|$)/g,_$1=/'/g,m=/"/g,g=/^(?:script|style|textarea)$/i,p=t=>(i,...s)=>({_$litType$:t,strings:i,values:s}),$=p(1),b=Symbol.for("lit-noChange"),w=Symbol.for("lit-nothing"),T=new WeakMap,x=(t,i,s)=>{var e,o;const n=null!==(e=null==s?void 0:s.renderBefore)&&void 0!==e?e:i;let l=n._$litPart$;if(void 0===l){const t=null!==(o=null==s?void 0:s.renderBefore)&&void 0!==o?o:null;n._$litPart$=l=new N(i.insertBefore(h(),t),t,void 0,null!=s?s:{});}return l._$AI(t),l},A=l$1.createTreeWalker(l$1,129,null,!1),C=(t,i)=>{const o=t.length-1,l=[];let h,r=2===i?"<svg>":"",d=c;for(let i=0;i<o;i++){const s=t[i];let o,u,p=-1,$=0;for(;$<s.length&&(d.lastIndex=$,u=d.exec(s),null!==u);)$=d.lastIndex,d===c?"!--"===u[1]?d=v:void 0!==u[1]?d=a:void 0!==u[2]?(g.test(u[2])&&(h=RegExp("</"+u[2],"g")),d=f):void 0!==u[3]&&(d=f):d===f?">"===u[0]?(d=null!=h?h:c,p=-1):void 0===u[1]?p=-2:(p=d.lastIndex-u[2].length,o=u[1],d=void 0===u[3]?f:'"'===u[3]?m:_$1):d===m||d===_$1?d=f:d===v||d===a?d=c:(d=f,h=void 0);const y=d===f&&t[i+1].startsWith("/>")?" ":"";r+=d===c?s+n$1:p>=0?(l.push(o),s.slice(0,p)+"$lit$"+s.slice(p)+e+y):s+e+(-2===p?(l.push(void 0),i):y);}const u=r+(t[o]||"<?>")+(2===i?"</svg>":"");if(!Array.isArray(t)||!t.hasOwnProperty("raw"))throw Error("invalid template strings array");return [void 0!==s$1?s$1.createHTML(u):u,l]};class E{constructor({strings:t,_$litType$:s},n){let l;this.parts=[];let r=0,d=0;const u=t.length-1,c=this.parts,[v,a]=C(t,s);if(this.el=E.createElement(v,n),A.currentNode=this.el.content,2===s){const t=this.el.content,i=t.firstChild;i.remove(),t.append(...i.childNodes);}for(;null!==(l=A.nextNode())&&c.length<u;){if(1===l.nodeType){if(l.hasAttributes()){const t=[];for(const i of l.getAttributeNames())if(i.endsWith("$lit$")||i.startsWith(e)){const s=a[d++];if(t.push(i),void 0!==s){const t=l.getAttribute(s.toLowerCase()+"$lit$").split(e),i=/([.?@])?(.*)/.exec(s);c.push({type:1,index:r,name:i[2],strings:t,ctor:"."===i[1]?M:"?"===i[1]?H:"@"===i[1]?I:S});}else c.push({type:6,index:r});}for(const i of t)l.removeAttribute(i);}if(g.test(l.tagName)){const t=l.textContent.split(e),s=t.length-1;if(s>0){l.textContent=i?i.emptyScript:"";for(let i=0;i<s;i++)l.append(t[i],h()),A.nextNode(),c.push({type:2,index:++r});l.append(t[s],h());}}}else if(8===l.nodeType)if(l.data===o$1)c.push({type:2,index:r});else {let t=-1;for(;-1!==(t=l.data.indexOf(e,t+1));)c.push({type:7,index:r}),t+=e.length-1;}r++;}}static createElement(t,i){const s=l$1.createElement("template");return s.innerHTML=t,s}}function P(t,i,s=t,e){var o,n,l,h;if(i===b)return i;let d=void 0!==e?null===(o=s._$Cl)||void 0===o?void 0:o[e]:s._$Cu;const u=r(i)?void 0:i._$litDirective$;return (null==d?void 0:d.constructor)!==u&&(null===(n=null==d?void 0:d._$AO)||void 0===n||n.call(d,!1),void 0===u?d=void 0:(d=new u(t),d._$AT(t,s,e)),void 0!==e?(null!==(l=(h=s)._$Cl)&&void 0!==l?l:h._$Cl=[])[e]=d:s._$Cu=d),void 0!==d&&(i=P(t,d._$AS(t,i.values),d,e)),i}class V{constructor(t,i){this.v=[],this._$AN=void 0,this._$AD=t,this._$AM=i;}get parentNode(){return this._$AM.parentNode}get _$AU(){return this._$AM._$AU}p(t){var i;const{el:{content:s},parts:e}=this._$AD,o=(null!==(i=null==t?void 0:t.creationScope)&&void 0!==i?i:l$1).importNode(s,!0);A.currentNode=o;let n=A.nextNode(),h=0,r=0,d=e[0];for(;void 0!==d;){if(h===d.index){let i;2===d.type?i=new N(n,n.nextSibling,this,t):1===d.type?i=new d.ctor(n,d.name,d.strings,this,t):6===d.type&&(i=new L(n,this,t)),this.v.push(i),d=e[++r];}h!==(null==d?void 0:d.index)&&(n=A.nextNode(),h++);}return o}m(t){let i=0;for(const s of this.v)void 0!==s&&(void 0!==s.strings?(s._$AI(t,s,i),i+=s.strings.length-2):s._$AI(t[i])),i++;}}class N{constructor(t,i,s,e){var o;this.type=2,this._$AH=w,this._$AN=void 0,this._$AA=t,this._$AB=i,this._$AM=s,this.options=e,this._$Cg=null===(o=null==e?void 0:e.isConnected)||void 0===o||o;}get _$AU(){var t,i;return null!==(i=null===(t=this._$AM)||void 0===t?void 0:t._$AU)&&void 0!==i?i:this._$Cg}get parentNode(){let t=this._$AA.parentNode;const i=this._$AM;return void 0!==i&&11===t.nodeType&&(t=i.parentNode),t}get startNode(){return this._$AA}get endNode(){return this._$AB}_$AI(t,i=this){t=P(this,t,i),r(t)?t===w||null==t||""===t?(this._$AH!==w&&this._$AR(),this._$AH=w):t!==this._$AH&&t!==b&&this.$(t):void 0!==t._$litType$?this.T(t):void 0!==t.nodeType?this.S(t):u(t)?this.A(t):this.$(t);}M(t,i=this._$AB){return this._$AA.parentNode.insertBefore(t,i)}S(t){this._$AH!==t&&(this._$AR(),this._$AH=this.M(t));}$(t){this._$AH!==w&&r(this._$AH)?this._$AA.nextSibling.data=t:this.S(l$1.createTextNode(t)),this._$AH=t;}T(t){var i;const{values:s,_$litType$:e}=t,o="number"==typeof e?this._$AC(t):(void 0===e.el&&(e.el=E.createElement(e.h,this.options)),e);if((null===(i=this._$AH)||void 0===i?void 0:i._$AD)===o)this._$AH.m(s);else {const t=new V(o,this),i=t.p(this.options);t.m(s),this.S(i),this._$AH=t;}}_$AC(t){let i=T.get(t.strings);return void 0===i&&T.set(t.strings,i=new E(t)),i}A(t){d(this._$AH)||(this._$AH=[],this._$AR());const i=this._$AH;let s,e=0;for(const o of t)e===i.length?i.push(s=new N(this.M(h()),this.M(h()),this,this.options)):s=i[e],s._$AI(o),e++;e<i.length&&(this._$AR(s&&s._$AB.nextSibling,e),i.length=e);}_$AR(t=this._$AA.nextSibling,i){var s;for(null===(s=this._$AP)||void 0===s||s.call(this,!1,!0,i);t&&t!==this._$AB;){const i=t.nextSibling;t.remove(),t=i;}}setConnected(t){var i;void 0===this._$AM&&(this._$Cg=t,null===(i=this._$AP)||void 0===i||i.call(this,t));}}class S{constructor(t,i,s,e,o){this.type=1,this._$AH=w,this._$AN=void 0,this.element=t,this.name=i,this._$AM=e,this.options=o,s.length>2||""!==s[0]||""!==s[1]?(this._$AH=Array(s.length-1).fill(new String),this.strings=s):this._$AH=w;}get tagName(){return this.element.tagName}get _$AU(){return this._$AM._$AU}_$AI(t,i=this,s,e){const o=this.strings;let n=!1;if(void 0===o)t=P(this,t,i,0),n=!r(t)||t!==this._$AH&&t!==b,n&&(this._$AH=t);else {const e=t;let l,h;for(t=o[0],l=0;l<o.length-1;l++)h=P(this,e[s+l],i,l),h===b&&(h=this._$AH[l]),n||(n=!r(h)||h!==this._$AH[l]),h===w?t=w:t!==w&&(t+=(null!=h?h:"")+o[l+1]),this._$AH[l]=h;}n&&!e&&this.k(t);}k(t){t===w?this.element.removeAttribute(this.name):this.element.setAttribute(this.name,null!=t?t:"");}}class M extends S{constructor(){super(...arguments),this.type=3;}k(t){this.element[this.name]=t===w?void 0:t;}}const k=i?i.emptyScript:"";class H extends S{constructor(){super(...arguments),this.type=4;}k(t){t&&t!==w?this.element.setAttribute(this.name,k):this.element.removeAttribute(this.name);}}class I extends S{constructor(t,i,s,e,o){super(t,i,s,e,o),this.type=5;}_$AI(t,i=this){var s;if((t=null!==(s=P(this,t,i,0))&&void 0!==s?s:w)===b)return;const e=this._$AH,o=t===w&&e!==w||t.capture!==e.capture||t.once!==e.once||t.passive!==e.passive,n=t!==w&&(e===w||o);o&&this.element.removeEventListener(this.name,this,e),n&&this.element.addEventListener(this.name,this,t),this._$AH=t;}handleEvent(t){var i,s;"function"==typeof this._$AH?this._$AH.call(null!==(s=null===(i=this.options)||void 0===i?void 0:i.host)&&void 0!==s?s:this.element,t):this._$AH.handleEvent(t);}}class L{constructor(t,i,s){this.element=t,this.type=6,this._$AN=void 0,this._$AM=i,this.options=s;}get _$AU(){return this._$AM._$AU}_$AI(t){P(this,t);}}const z=window.litHtmlPolyfillSupport;null==z||z(E,N),(null!==(t=globalThis.litHtmlVersions)&&void 0!==t?t:globalThis.litHtmlVersions=[]).push("2.1.1");
+  var t;const i=window,s$1=i.trustedTypes,e=s$1?s$1.createPolicy("lit-html",{createHTML:t=>t}):void 0,o$1="$lit$",n$1=`lit$${(Math.random()+"").slice(9)}$`,l$1="?"+n$1,h=`<${l$1}>`,r=document,u=()=>r.createComment(""),d=t=>null===t||"object"!=typeof t&&"function"!=typeof t,c=Array.isArray,v=t=>c(t)||"function"==typeof(null==t?void 0:t[Symbol.iterator]),a="[ \t\n\f\r]",f=/<(?:(!--|\/[^a-zA-Z])|(\/?[a-zA-Z][^>\s]*)|(\/?$))/g,_$1=/-->/g,m=/>/g,p=RegExp(`>|${a}(?:([^\\s"'>=/]+)(${a}*=${a}*(?:[^ \t\n\f\r"'\`<>=]|("|')|))|$)`,"g"),g=/'/g,$=/"/g,y=/^(?:script|style|textarea|title)$/i,w=t=>(i,...s)=>({_$litType$:t,strings:i,values:s}),x=w(1),T=Symbol.for("lit-noChange"),A=Symbol.for("lit-nothing"),E=new WeakMap,C=r.createTreeWalker(r,129,null,!1);function P(t,i){if(!Array.isArray(t)||!t.hasOwnProperty("raw"))throw Error("invalid template strings array");return void 0!==e?e.createHTML(i):i}const V=(t,i)=>{const s=t.length-1,e=[];let l,r=2===i?"<svg>":"",u=f;for(let i=0;i<s;i++){const s=t[i];let d,c,v=-1,a=0;for(;a<s.length&&(u.lastIndex=a,c=u.exec(s),null!==c);)a=u.lastIndex,u===f?"!--"===c[1]?u=_$1:void 0!==c[1]?u=m:void 0!==c[2]?(y.test(c[2])&&(l=RegExp("</"+c[2],"g")),u=p):void 0!==c[3]&&(u=p):u===p?">"===c[0]?(u=null!=l?l:f,v=-1):void 0===c[1]?v=-2:(v=u.lastIndex-c[2].length,d=c[1],u=void 0===c[3]?p:'"'===c[3]?$:g):u===$||u===g?u=p:u===_$1||u===m?u=f:(u=p,l=void 0);const w=u===p&&t[i+1].startsWith("/>")?" ":"";r+=u===f?s+h:v>=0?(e.push(d),s.slice(0,v)+o$1+s.slice(v)+n$1+w):s+n$1+(-2===v?(e.push(void 0),i):w);}return [P(t,r+(t[s]||"<?>")+(2===i?"</svg>":"")),e]};class N{constructor({strings:t,_$litType$:i},e){let h;this.parts=[];let r=0,d=0;const c=t.length-1,v=this.parts,[a,f]=V(t,i);if(this.el=N.createElement(a,e),C.currentNode=this.el.content,2===i){const t=this.el.content,i=t.firstChild;i.remove(),t.append(...i.childNodes);}for(;null!==(h=C.nextNode())&&v.length<c;){if(1===h.nodeType){if(h.hasAttributes()){const t=[];for(const i of h.getAttributeNames())if(i.endsWith(o$1)||i.startsWith(n$1)){const s=f[d++];if(t.push(i),void 0!==s){const t=h.getAttribute(s.toLowerCase()+o$1).split(n$1),i=/([.?@])?(.*)/.exec(s);v.push({type:1,index:r,name:i[2],strings:t,ctor:"."===i[1]?H:"?"===i[1]?L:"@"===i[1]?z:k});}else v.push({type:6,index:r});}for(const i of t)h.removeAttribute(i);}if(y.test(h.tagName)){const t=h.textContent.split(n$1),i=t.length-1;if(i>0){h.textContent=s$1?s$1.emptyScript:"";for(let s=0;s<i;s++)h.append(t[s],u()),C.nextNode(),v.push({type:2,index:++r});h.append(t[i],u());}}}else if(8===h.nodeType)if(h.data===l$1)v.push({type:2,index:r});else {let t=-1;for(;-1!==(t=h.data.indexOf(n$1,t+1));)v.push({type:7,index:r}),t+=n$1.length-1;}r++;}}static createElement(t,i){const s=r.createElement("template");return s.innerHTML=t,s}}function S(t,i,s=t,e){var o,n,l,h;if(i===T)return i;let r=void 0!==e?null===(o=s._$Co)||void 0===o?void 0:o[e]:s._$Cl;const u=d(i)?void 0:i._$litDirective$;return (null==r?void 0:r.constructor)!==u&&(null===(n=null==r?void 0:r._$AO)||void 0===n||n.call(r,!1),void 0===u?r=void 0:(r=new u(t),r._$AT(t,s,e)),void 0!==e?(null!==(l=(h=s)._$Co)&&void 0!==l?l:h._$Co=[])[e]=r:s._$Cl=r),void 0!==r&&(i=S(t,r._$AS(t,i.values),r,e)),i}class M{constructor(t,i){this._$AV=[],this._$AN=void 0,this._$AD=t,this._$AM=i;}get parentNode(){return this._$AM.parentNode}get _$AU(){return this._$AM._$AU}u(t){var i;const{el:{content:s},parts:e}=this._$AD,o=(null!==(i=null==t?void 0:t.creationScope)&&void 0!==i?i:r).importNode(s,!0);C.currentNode=o;let n=C.nextNode(),l=0,h=0,u=e[0];for(;void 0!==u;){if(l===u.index){let i;2===u.type?i=new R(n,n.nextSibling,this,t):1===u.type?i=new u.ctor(n,u.name,u.strings,this,t):6===u.type&&(i=new Z(n,this,t)),this._$AV.push(i),u=e[++h];}l!==(null==u?void 0:u.index)&&(n=C.nextNode(),l++);}return C.currentNode=r,o}v(t){let i=0;for(const s of this._$AV)void 0!==s&&(void 0!==s.strings?(s._$AI(t,s,i),i+=s.strings.length-2):s._$AI(t[i])),i++;}}class R{constructor(t,i,s,e){var o;this.type=2,this._$AH=A,this._$AN=void 0,this._$AA=t,this._$AB=i,this._$AM=s,this.options=e,this._$Cp=null===(o=null==e?void 0:e.isConnected)||void 0===o||o;}get _$AU(){var t,i;return null!==(i=null===(t=this._$AM)||void 0===t?void 0:t._$AU)&&void 0!==i?i:this._$Cp}get parentNode(){let t=this._$AA.parentNode;const i=this._$AM;return void 0!==i&&11===(null==t?void 0:t.nodeType)&&(t=i.parentNode),t}get startNode(){return this._$AA}get endNode(){return this._$AB}_$AI(t,i=this){t=S(this,t,i),d(t)?t===A||null==t||""===t?(this._$AH!==A&&this._$AR(),this._$AH=A):t!==this._$AH&&t!==T&&this._(t):void 0!==t._$litType$?this.g(t):void 0!==t.nodeType?this.$(t):v(t)?this.T(t):this._(t);}k(t){return this._$AA.parentNode.insertBefore(t,this._$AB)}$(t){this._$AH!==t&&(this._$AR(),this._$AH=this.k(t));}_(t){this._$AH!==A&&d(this._$AH)?this._$AA.nextSibling.data=t:this.$(r.createTextNode(t)),this._$AH=t;}g(t){var i;const{values:s,_$litType$:e}=t,o="number"==typeof e?this._$AC(t):(void 0===e.el&&(e.el=N.createElement(P(e.h,e.h[0]),this.options)),e);if((null===(i=this._$AH)||void 0===i?void 0:i._$AD)===o)this._$AH.v(s);else {const t=new M(o,this),i=t.u(this.options);t.v(s),this.$(i),this._$AH=t;}}_$AC(t){let i=E.get(t.strings);return void 0===i&&E.set(t.strings,i=new N(t)),i}T(t){c(this._$AH)||(this._$AH=[],this._$AR());const i=this._$AH;let s,e=0;for(const o of t)e===i.length?i.push(s=new R(this.k(u()),this.k(u()),this,this.options)):s=i[e],s._$AI(o),e++;e<i.length&&(this._$AR(s&&s._$AB.nextSibling,e),i.length=e);}_$AR(t=this._$AA.nextSibling,i){var s;for(null===(s=this._$AP)||void 0===s||s.call(this,!1,!0,i);t&&t!==this._$AB;){const i=t.nextSibling;t.remove(),t=i;}}setConnected(t){var i;void 0===this._$AM&&(this._$Cp=t,null===(i=this._$AP)||void 0===i||i.call(this,t));}}class k{constructor(t,i,s,e,o){this.type=1,this._$AH=A,this._$AN=void 0,this.element=t,this.name=i,this._$AM=e,this.options=o,s.length>2||""!==s[0]||""!==s[1]?(this._$AH=Array(s.length-1).fill(new String),this.strings=s):this._$AH=A;}get tagName(){return this.element.tagName}get _$AU(){return this._$AM._$AU}_$AI(t,i=this,s,e){const o=this.strings;let n=!1;if(void 0===o)t=S(this,t,i,0),n=!d(t)||t!==this._$AH&&t!==T,n&&(this._$AH=t);else {const e=t;let l,h;for(t=o[0],l=0;l<o.length-1;l++)h=S(this,e[s+l],i,l),h===T&&(h=this._$AH[l]),n||(n=!d(h)||h!==this._$AH[l]),h===A?t=A:t!==A&&(t+=(null!=h?h:"")+o[l+1]),this._$AH[l]=h;}n&&!e&&this.j(t);}j(t){t===A?this.element.removeAttribute(this.name):this.element.setAttribute(this.name,null!=t?t:"");}}class H extends k{constructor(){super(...arguments),this.type=3;}j(t){this.element[this.name]=t===A?void 0:t;}}const I=s$1?s$1.emptyScript:"";class L extends k{constructor(){super(...arguments),this.type=4;}j(t){t&&t!==A?this.element.setAttribute(this.name,I):this.element.removeAttribute(this.name);}}class z extends k{constructor(t,i,s,e,o){super(t,i,s,e,o),this.type=5;}_$AI(t,i=this){var s;if((t=null!==(s=S(this,t,i,0))&&void 0!==s?s:A)===T)return;const e=this._$AH,o=t===A&&e!==A||t.capture!==e.capture||t.once!==e.once||t.passive!==e.passive,n=t!==A&&(e===A||o);o&&this.element.removeEventListener(this.name,this,e),n&&this.element.addEventListener(this.name,this,t),this._$AH=t;}handleEvent(t){var i,s;"function"==typeof this._$AH?this._$AH.call(null!==(s=null===(i=this.options)||void 0===i?void 0:i.host)&&void 0!==s?s:this.element,t):this._$AH.handleEvent(t);}}class Z{constructor(t,i,s){this.element=t,this.type=6,this._$AN=void 0,this._$AM=i,this.options=s;}get _$AU(){return this._$AM._$AU}_$AI(t){S(this,t);}}const B=i.litHtmlPolyfillSupport;null==B||B(N,R),(null!==(t=i.litHtmlVersions)&&void 0!==t?t:i.litHtmlVersions=[]).push("2.8.0");const D=(t,i,s)=>{var e,o;const n=null!==(e=null==s?void 0:s.renderBefore)&&void 0!==e?e:i;let l=n._$litPart$;if(void 0===l){const t=null!==(o=null==s?void 0:s.renderBefore)&&void 0!==o?o:null;n._$litPart$=l=new R(i.insertBefore(u(),t),t,void 0,null!=s?s:{});}return l._$AI(t),l};
 
   /**
    * @license
    * Copyright 2017 Google LLC
    * SPDX-License-Identifier: BSD-3-Clause
-   */var l,o;class s extends a$1{constructor(){super(...arguments),this.renderOptions={host:this},this._$Dt=void 0;}createRenderRoot(){var t,e;const i=super.createRenderRoot();return null!==(t=(e=this.renderOptions).renderBefore)&&void 0!==t||(e.renderBefore=i.firstChild),i}update(t){const i=this.render();this.hasUpdated||(this.renderOptions.isConnected=this.isConnected),super.update(t),this._$Dt=x(i,this.renderRoot,this.renderOptions);}connectedCallback(){var t;super.connectedCallback(),null===(t=this._$Dt)||void 0===t||t.setConnected(!0);}disconnectedCallback(){var t;super.disconnectedCallback(),null===(t=this._$Dt)||void 0===t||t.setConnected(!1);}render(){return b}}s.finalized=!0,s._$litElement$=!0,null===(l=globalThis.litElementHydrateSupport)||void 0===l||l.call(globalThis,{LitElement:s});const n=globalThis.litElementPolyfillSupport;null==n||n({LitElement:s});(null!==(o=globalThis.litElementVersions)&&void 0!==o?o:globalThis.litElementVersions=[]).push("3.1.1");
+   */var l,o;class s extends u$1{constructor(){super(...arguments),this.renderOptions={host:this},this._$Do=void 0;}createRenderRoot(){var t,e;const i=super.createRenderRoot();return null!==(t=(e=this.renderOptions).renderBefore)&&void 0!==t||(e.renderBefore=i.firstChild),i}update(t){const i=this.render();this.hasUpdated||(this.renderOptions.isConnected=this.isConnected),super.update(t),this._$Do=D(i,this.renderRoot,this.renderOptions);}connectedCallback(){var t;super.connectedCallback(),null===(t=this._$Do)||void 0===t||t.setConnected(!0);}disconnectedCallback(){var t;super.disconnectedCallback(),null===(t=this._$Do)||void 0===t||t.setConnected(!1);}render(){return T}}s.finalized=!0,s._$litElement$=!0,null===(l=globalThis.litElementHydrateSupport)||void 0===l||l.call(globalThis,{LitElement:s});const n=globalThis.litElementPolyfillSupport;null==n||n({LitElement:s});(null!==(o=globalThis.litElementVersions)&&void 0!==o?o:globalThis.litElementVersions=[]).push("3.3.3");
 
   var commonjsGlobal = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
 
@@ -33030,9 +40461,9 @@
   var Hammer = hammer.exports;
 
   /*!
-  * chartjs-plugin-zoom v1.2.0
+  * chartjs-plugin-zoom v1.3.0
   * undefined
-   * (c) 2016-2021 chartjs-plugin-zoom Contributors
+   * (c) 2016-2022 chartjs-plugin-zoom Contributors
    * Released under the MIT License
    */
 
@@ -33058,6 +40489,17 @@
     return false;
   }
 
+  function directionsEnabled(mode, chart) {
+    if (typeof mode === 'function') {
+      mode = mode({chart});
+    }
+    if (typeof mode === 'string') {
+      return {x: mode.indexOf('x') !== -1, y: mode.indexOf('y') !== -1};
+    }
+
+    return {x: false, y: false};
+  }
+
   /**
    * Debounces calling `fn` for `delay` ms
    * @param {function} fn - Function to call. No arguments are passed.
@@ -33073,7 +40515,8 @@
     };
   }
 
-  /** This function use for check what axis now under mouse cursor.
+  /**
+   * Checks which axis is under the mouse cursor.
    * @param {{x: number, y: number}} point - the mouse location
    * @param {import('chart.js').Chart} [chart] instance of the chart in question
    * @return {import('chart.js').Scale}
@@ -33090,27 +40533,40 @@
     return null;
   }
 
-  /** This function return only one scale whose position is under mouse cursor and which direction is enabled.
-   * If under mouse hasn't scale, then return all other scales which 'mode' is diffrent with overScaleMode.
-   * So 'overScaleMode' works as a limiter to scale the user-selected scale (in 'mode') only when the cursor is under the scale,
-   * and other directions in 'mode' works as before.
-   * Example: mode = 'xy', overScaleMode = 'y' -> it's means 'x' - works as before, and 'y' only works for one scale when cursor is under it.
+  /**
+   * Evaluate the chart's mode, scaleMode, and overScaleMode properties to
+   * determine which axes are eligible for scaling.
    * options.overScaleMode can be a function if user want zoom only one scale of many for example.
-   * @param {string} mode - 'xy', 'x' or 'y'
+   * @param options - Zoom or pan options
    * @param {{x: number, y: number}} point - the mouse location
    * @param {import('chart.js').Chart} [chart] instance of the chart in question
    * @return {import('chart.js').Scale[]}
    */
-  function getEnabledScalesByPoint(mode, point, chart) {
+  function getEnabledScalesByPoint(options, point, chart) {
+    const {mode = 'xy', scaleMode, overScaleMode} = options || {};
     const scale = getScaleUnderPoint(point, chart);
 
-    if (scale && directionEnabled(mode, scale.axis, chart)) {
+    const enabled = directionsEnabled(mode, chart);
+    const scaleEnabled = directionsEnabled(scaleMode, chart);
+
+    // Convert deprecated overScaleEnabled to new scaleEnabled.
+    if (overScaleMode) {
+      const overScaleEnabled = directionsEnabled(overScaleMode, chart);
+      for (const axis of ['x', 'y']) {
+        if (overScaleEnabled[axis]) {
+          scaleEnabled[axis] = enabled[axis];
+          enabled[axis] = false;
+        }
+      }
+    }
+
+    if (scale && scaleEnabled[scale.axis]) {
       return [scale];
     }
 
     const enabledScales = [];
     each(chart.scales, function(scaleItem) {
-      if (!directionEnabled(mode, scaleItem.axis, chart)) {
+      if (enabled[scaleItem.axis]) {
         enabledScales.push(scaleItem);
       }
     });
@@ -33165,6 +40621,15 @@
     return valueOrDefault(limit, fallback);
   }
 
+  function getRange(scale, pixel0, pixel1) {
+    const v0 = scale.getValueForPixel(pixel0);
+    const v1 = scale.getValueForPixel(pixel1);
+    return {
+      min: Math.min(v0, v1),
+      max: Math.max(v0, v1)
+    };
+  }
+
   function updateRange(scale, {min, max}, limits, zoom = false) {
     const state = getState(scale.chart);
     const {id, axis, options: scaleOpts} = scale;
@@ -33206,6 +40671,10 @@
     const delta = zoomDelta(scale, zoom, center);
     const newRange = {min: scale.min + delta.min, max: scale.max - delta.max};
     return updateRange(scale, newRange, limits, true);
+  }
+
+  function zoomRectNumericalScale(scale, from, to, limits) {
+    updateRange(scale, getRange(scale, from, to), limits, true);
   }
 
   const integerChange = (v) => v === 0 || isNaN(v) ? 0 : v < 0 ? Math.min(Math.round(v), -1) : Math.max(Math.round(v), 1);
@@ -33294,6 +40763,10 @@
     default: zoomNumericalScale,
   };
 
+  const zoomRectFunctions = {
+    default: zoomRectNumericalScale,
+  };
+
   const panFunctions = {
     category: panCategoryScale,
     default: panNumericalScale,
@@ -33341,6 +40814,11 @@
     callback(fn, [scale, amount, center, limits]);
   }
 
+  function doZoomRect(scale, amount, from, to, limits) {
+    const fn = zoomRectFunctions[scale.type] || zoomRectFunctions.default;
+    callback(fn, [scale, amount, from, to, limits]);
+  }
+
   function getCenter(chart) {
     const ca = chart.chartArea;
     return {
@@ -33358,13 +40836,12 @@
     const {x = 1, y = 1, focalPoint = getCenter(chart)} = typeof amount === 'number' ? {x: amount, y: amount} : amount;
     const state = getState(chart);
     const {options: {limits, zoom: zoomOptions}} = state;
-    const {mode = 'xy', overScaleMode} = zoomOptions || {};
 
     storeOriginalScaleLimits(chart, state);
 
-    const xEnabled = x !== 1 && directionEnabled(mode, 'x', chart);
-    const yEnabled = y !== 1 && directionEnabled(mode, 'y', chart);
-    const enabledScales = overScaleMode && getEnabledScalesByPoint(overScaleMode, focalPoint, chart);
+    const xEnabled = x !== 1;
+    const yEnabled = y !== 1;
+    const enabledScales = getEnabledScalesByPoint(zoomOptions, focalPoint, chart);
 
     each(enabledScales || chart.scales, function(scale) {
       if (scale.isHorizontal() && xEnabled) {
@@ -33379,15 +40856,6 @@
     callback(zoomOptions.onZoom, [{chart}]);
   }
 
-  function getRange(scale, pixel0, pixel1) {
-    const v0 = scale.getValueForPixel(pixel0);
-    const v1 = scale.getValueForPixel(pixel1);
-    return {
-      min: Math.min(v0, v1),
-      max: Math.max(v0, v1)
-    };
-  }
-
   function zoomRect(chart, p0, p1, transition = 'none') {
     const state = getState(chart);
     const {options: {limits, zoom: zoomOptions}} = state;
@@ -33399,9 +40867,9 @@
 
     each(chart.scales, function(scale) {
       if (scale.isHorizontal() && xEnabled) {
-        updateRange(scale, getRange(scale, p0.x, p1.x), limits, true);
+        doZoomRect(scale, p0.x, p1.x, limits);
       } else if (!scale.isHorizontal() && yEnabled) {
-        updateRange(scale, getRange(scale, p0.y, p1.y), limits, true);
+        doZoomRect(scale, p0.y, p1.y, limits);
       }
     });
 
@@ -33480,12 +40948,12 @@
     const {x = 0, y = 0} = typeof delta === 'number' ? {x: delta, y: delta} : delta;
     const state = getState(chart);
     const {options: {pan: panOptions, limits}} = state;
-    const {mode = 'xy', onPan} = panOptions || {};
+    const {onPan} = panOptions || {};
 
     storeOriginalScaleLimits(chart, state);
 
-    const xEnabled = x !== 0 && directionEnabled(mode, 'x', chart);
-    const yEnabled = y !== 0 && directionEnabled(mode, 'y', chart);
+    const xEnabled = x !== 0;
+    const yEnabled = y !== 0;
 
     each(enabledScales || chart.scales, function(scale) {
       if (scale.isHorizontal() && xEnabled) {
@@ -33516,11 +40984,11 @@
     for (const scaleId of Object.keys(chart.scales)) {
       const {min: originalMin, max: originalMax} = scaleBounds[scaleId];
 
-      if (chart.scales[scaleId].min !== originalMin) {
+      if (originalMin !== undefined && chart.scales[scaleId].min !== originalMin) {
         return true;
       }
 
-      if (chart.scales[scaleId].max !== originalMax) {
+      if (originalMax !== undefined && chart.scales[scaleId].max !== originalMax) {
         return true;
       }
     }
@@ -33539,6 +41007,11 @@
 
   function addHandler(chart, target, type, handler) {
     const {handlers, options} = getState(chart);
+    const oldHandler = handlers[type];
+    if (oldHandler && oldHandler.target === target) {
+      // already attached
+      return;
+    }
     removeHandler(chart, type);
     handlers[type] = (event) => handler(chart, event, options);
     handlers[type].target = target;
@@ -33552,6 +41025,18 @@
       state.dragEnd = event;
       chart.update('none');
     }
+  }
+
+  function keyDown(chart, event) {
+    const state = getState(chart);
+    if (!state.dragStart || event.key !== 'Escape') {
+      return;
+    }
+
+    removeHandler(chart, 'keydown');
+    state.dragging = false;
+    state.dragStart = state.dragEnd = null;
+    chart.update('none');
   }
 
   function zoomStart(chart, event, zoomOptions) {
@@ -33572,7 +41057,11 @@
   function mouseDown(chart, event) {
     const state = getState(chart);
     const {pan: panOptions, zoom: zoomOptions = {}} = state.options;
-    if (keyPressed(getModifierKey(panOptions), event) || keyNotPressed(getModifierKey(zoomOptions.drag), event)) {
+    if (
+      event.button !== 0 ||
+      keyPressed(getModifierKey(panOptions), event) ||
+      keyNotPressed(getModifierKey(zoomOptions.drag), event)
+    ) {
       return callback(zoomOptions.onZoomRejected, [{chart, event}]);
     }
 
@@ -33582,6 +41071,7 @@
     state.dragStart = event;
 
     addHandler(chart, chart.canvas, 'mousemove', mouseMove);
+    addHandler(chart, window.document, 'keydown', keyDown);
   }
 
   function computeDragRect(chart, mode, beginPoint, endPoint) {
@@ -33653,7 +41143,7 @@
       return;
     }
 
-    // Prevent the event from triggering the default behavior (eg. Content scrolling).
+    // Prevent the event from triggering the default behavior (e.g. content scrolling).
     if (event.cancelable) {
       event.preventDefault();
     }
@@ -33717,6 +41207,7 @@
       removeHandler(chart, 'mousedown');
       removeHandler(chart, 'mousemove');
       removeHandler(chart, 'mouseup');
+      removeHandler(chart, 'keydown');
     }
   }
 
@@ -33726,6 +41217,7 @@
     removeHandler(chart, 'mouseup');
     removeHandler(chart, 'wheel');
     removeHandler(chart, 'click');
+    removeHandler(chart, 'keydown');
   }
 
   function createEnabler(chart, state) {
@@ -33814,7 +41306,7 @@
   }
 
   function startPan(chart, state, event) {
-    const {enabled, overScaleMode, onPanStart, onPanRejected} = state.options.pan;
+    const {enabled, onPanStart, onPanRejected} = state.options.pan;
     if (!enabled) {
       return;
     }
@@ -33828,7 +41320,7 @@
       return callback(onPanRejected, [{chart, event}]);
     }
 
-    state.panScales = overScaleMode && getEnabledScalesByPoint(overScaleMode, point, chart);
+    state.panScales = getEnabledScalesByPoint(state.options.pan, point, chart);
     state.delta = {x: 0, y: 0};
     clearTimeout(state.panEndTimeout);
     handlePan(chart, state, event);
@@ -33883,7 +41375,30 @@
     }
   }
 
-  var version$1 = "1.2.0";
+  var version$1 = "1.3.0";
+
+  function draw$1(chart, caller, options) {
+    const dragOptions = options.zoom.drag;
+    const {dragStart, dragEnd} = getState(chart);
+
+    if (dragOptions.drawTime !== caller || !dragEnd) {
+      return;
+    }
+    const {left, top, width, height} = computeDragRect(chart, options.zoom.mode, dragStart, dragEnd);
+    const ctx = chart.ctx;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.fillStyle = dragOptions.backgroundColor || 'rgba(225,225,225,0.3)';
+    ctx.fillRect(left, top, width, height);
+
+    if (dragOptions.borderWidth > 0) {
+      ctx.lineWidth = dragOptions.borderWidth;
+      ctx.strokeStyle = dragOptions.borderColor || 'rgba(225,225,225)';
+      ctx.strokeRect(left, top, width, height);
+    }
+    ctx.restore();
+  }
 
   var plugin = {
     id: 'zoom',
@@ -33905,6 +41420,7 @@
         },
         drag: {
           enabled: false,
+          drawTime: 'beforeDatasetsDraw',
           modifierKey: null
         },
         pinch: {
@@ -33921,6 +41437,10 @@
       if (Object.prototype.hasOwnProperty.call(options.zoom, 'enabled')) {
         console.warn('The option `zoom.enabled` is no longer supported. Please use `zoom.wheel.enabled`, `zoom.drag.enabled`, or `zoom.pinch.enabled`.');
       }
+      if (Object.prototype.hasOwnProperty.call(options.zoom, 'overScaleMode')
+        || Object.prototype.hasOwnProperty.call(options.pan, 'overScaleMode')) {
+        console.warn('The option `overScaleMode` is deprecated. Please use `scaleMode` instead (and update `mode` as desired).');
+      }
 
       if (Hammer) {
         startHammer(chart, options);
@@ -33928,6 +41448,7 @@
 
       chart.pan = (delta, panScales, transition) => pan(chart, delta, panScales, transition);
       chart.zoom = (args, transition) => zoom(chart, args, transition);
+      chart.zoomRect = (p0, p1, transition) => zoomRect(chart, p0, p1, transition);
       chart.zoomScale = (id, range, transition) => zoomScale(chart, id, range, transition);
       chart.resetZoom = (transition) => resetZoom(chart, transition);
       chart.getZoomLevel = () => getZoomLevel(chart);
@@ -33949,27 +41470,20 @@
       addListeners(chart, options);
     },
 
-    beforeDatasetsDraw: function(chart, args, options) {
-      const {dragStart, dragEnd} = getState(chart);
+    beforeDatasetsDraw(chart, _args, options) {
+      draw$1(chart, 'beforeDatasetsDraw', options);
+    },
 
-      if (dragEnd) {
-        const {left, top, width, height} = computeDragRect(chart, options.zoom.mode, dragStart, dragEnd);
+    afterDatasetsDraw(chart, _args, options) {
+      draw$1(chart, 'afterDatasetsDraw', options);
+    },
 
-        const dragOptions = options.zoom.drag;
-        const ctx = chart.ctx;
+    beforeDraw(chart, _args, options) {
+      draw$1(chart, 'beforeDraw', options);
+    },
 
-        ctx.save();
-        ctx.beginPath();
-        ctx.fillStyle = dragOptions.backgroundColor || 'rgba(225,225,225,0.3)';
-        ctx.fillRect(left, top, width, height);
-
-        if (dragOptions.borderWidth > 0) {
-          ctx.lineWidth = dragOptions.borderWidth;
-          ctx.strokeStyle = dragOptions.borderColor || 'rgba(225,225,225)';
-          ctx.strokeRect(left, top, width, height);
-        }
-        ctx.restore();
-      }
+    afterDraw(chart, _args, options) {
+      draw$1(chart, 'afterDraw', options);
     },
 
     stop: function(chart) {
@@ -33982,14 +41496,14 @@
     },
 
     panFunctions,
-
-    zoomFunctions
+    zoomFunctions,
+    zoomRectFunctions,
   };
 
   /*!
-  * chartjs-plugin-annotation v1.2.2
+  * chartjs-plugin-annotation v1.4.0
   * https://www.chartjs.org/chartjs-plugin-annotation/index
-   * (c) 2021 chartjs-plugin-annotation Contributors
+   * (c) 2022 chartjs-plugin-annotation Contributors
    * Released under the MIT License
    */
 
@@ -33998,7 +41512,6 @@
   const hooks = clickHooks.concat(moveHooks);
 
   function updateListeners(chart, state, options) {
-    const annotations = state.annotations || [];
     state.listened = false;
     state.moveListened = false;
 
@@ -34017,7 +41530,7 @@
     });
 
     if (!state.listened || !state.moveListened) {
-      annotations.forEach(scope => {
+      state.annotations.forEach(scope => {
         if (!state.listened) {
           clickHooks.forEach(hook => {
             if (typeof scope[hook] === 'function') {
@@ -34159,10 +41672,23 @@
 
   function verifyScaleIDs(annotation, scales) {
     for (const key of ['scaleID', 'xScaleID', 'yScaleID']) {
-      if (annotation[key] && !scales[annotation[key]]) {
+      if (annotation[key] && !scales[annotation[key]] && verifyProperties(annotation, key)) {
         console.warn(`No scale found with id '${annotation[key]}' for annotation '${annotation.id}'`);
       }
     }
+  }
+
+  function verifyProperties(annotation, key) {
+    if (key === 'scaleID') {
+      return true;
+    }
+    const axis = key.charAt(0);
+    for (const prop of ['Min', 'Max', 'Value']) {
+      if (defined(annotation[axis + prop])) {
+        return true;
+      }
+    }
+    return false;
   }
 
   function getScaleLimits(scale, annotations) {
@@ -34186,13 +41712,15 @@
   function updateLimits(annotation, scale, props, limits) {
     for (const prop of props) {
       const raw = annotation[prop];
-      if (raw) {
+      if (defined(raw)) {
         const value = scale.parse(raw);
         limits.min = Math.min(limits.min, value);
         limits.max = Math.max(limits.max, value);
       }
     }
   }
+
+  const EPSILON = 0.001;
 
   const clamp = (x, from, to) => Math.min(to, Math.max(from, x));
 
@@ -34203,23 +41731,46 @@
     return obj;
   }
 
-  function inPointRange(point, center, radius) {
+  function inPointRange(point, center, radius, borderWidth) {
     if (!point || !center || radius <= 0) {
       return false;
     }
-    return (Math.pow(point.x - center.x, 2) + Math.pow(point.y - center.y, 2)) <= Math.pow(radius, 2);
+    const hBorderWidth = borderWidth / 2 || 0;
+    return (Math.pow(point.x - center.x, 2) + Math.pow(point.y - center.y, 2)) <= Math.pow(radius + hBorderWidth, 2);
   }
 
-  function inBoxRange(mouseX, mouseY, {x, y, width, height}) {
-    return mouseX >= x &&
-           mouseX <= x + width &&
-           mouseY >= y &&
-           mouseY <= y + height;
+  function inBoxRange(mouseX, mouseY, {x, y, width, height}, borderWidth) {
+    const hBorderWidth = borderWidth / 2;
+    return mouseX >= x - hBorderWidth - EPSILON &&
+           mouseX <= x + width + hBorderWidth + EPSILON &&
+           mouseY >= y - hBorderWidth - EPSILON &&
+           mouseY <= y + height + hBorderWidth + EPSILON;
   }
 
   function getElementCenterPoint(element, useFinalPosition) {
     const {x, y} = element.getProps(['x', 'y'], useFinalPosition);
     return {x, y};
+  }
+
+  const isOlderPart = (act, req) => req > act || (act.length > req.length && act.substr(0, req.length) === req);
+
+  function requireVersion(pkg, min, ver, strict = true) {
+    const parts = ver.split('.');
+    let i = 0;
+    for (const req of min.split('.')) {
+      const act = parts[i++];
+      if (parseInt(req, 10) < parseInt(act, 10)) {
+        break;
+      }
+      if (isOlderPart(act, req)) {
+        if (strict) {
+          throw new Error(`${pkg} v${ver} is not supported. v${min} or newer is required.`);
+        } else {
+          return false;
+        }
+      }
+    }
+    return true;
   }
 
   const isPercentString = (s) => typeof s === 'string' && s.endsWith('%');
@@ -34258,24 +41809,18 @@
     return x;
   }
 
-  function readValueToProps(value, props, defValue) {
-    const ret = {};
-    const objProps = isObject(props);
-    const keys = objProps ? Object.keys(props) : props;
-    const read = isObject(value)
-      ? objProps
-        ? prop => valueOrDefault(value[prop], value[props[prop]])
-        : prop => value[prop]
-      : () => value;
-
-    for (const prop of keys) {
-      ret[prop] = valueOrDefault(read(prop), defValue);
-    }
-    return ret;
-  }
-
   function toPosition(value) {
-    return readValueToProps(value, ['x', 'y'], 'center');
+    if (isObject(value)) {
+      return {
+        x: valueOrDefault(value.x, 'center'),
+        y: valueOrDefault(value.y, 'center'),
+      };
+    }
+    value = valueOrDefault(value, 'center');
+    return {
+      x: value,
+      y: value
+    };
   }
 
   function isBoundToPoint(options) {
@@ -34284,12 +41829,36 @@
 
   const widthCache = new Map();
 
+  /**
+   * Determine if content is an image or a canvas.
+   * @param {*} content
+   * @returns boolean|undefined
+   * @todo move this function to chart.js helpers
+   */
   function isImageOrCanvas(content) {
-    return content instanceof Image || content instanceof HTMLCanvasElement;
+    if (content && typeof content === 'object') {
+      const type = content.toString();
+      return (type === '[object HTMLImageElement]' || type === '[object HTMLCanvasElement]');
+    }
   }
 
   /**
-   * Apply border options to the canvas context before drawing a box
+   * Set the translation on the canvas if the rotation must be applied.
+   * @param {CanvasRenderingContext2D} ctx - chart canvas context
+   * @param {Element} element - annotation element to use for applying the translation
+   * @param {number} rotation - rotation (in degrees) to apply
+   */
+  function translate(ctx, element, rotation) {
+    if (rotation) {
+      const center = element.getCenterPoint();
+      ctx.translate(center.x, center.y);
+      ctx.rotate(toRadians(rotation));
+      ctx.translate(-center.x, -center.y);
+    }
+  }
+
+  /**
+   * Apply border options to the canvas context before drawing a shape
    * @param {CanvasRenderingContext2D} ctx - chart canvas context
    * @param {Object} options - options with border configuration
    * @returns {boolean} true is the border options have been applied
@@ -34307,6 +41876,18 @@
   }
 
   /**
+   * Apply shadow options to the canvas context before drawing a shape
+   * @param {CanvasRenderingContext2D} ctx - chart canvas context
+   * @param {Object} options - options with shadow configuration
+   */
+  function setShadowStyle(ctx, options) {
+    ctx.shadowColor = options.backgroundShadowColor;
+    ctx.shadowBlur = options.shadowBlur;
+    ctx.shadowOffsetX = options.shadowOffsetX;
+    ctx.shadowOffsetY = options.shadowOffsetY;
+  }
+
+  /**
    * Measure the label size using the label options.
    * @param {CanvasRenderingContext2D} ctx - chart canvas context
    * @param {Object} options - options to configure the label
@@ -34321,8 +41902,9 @@
       };
     }
     const font = toFont(options.font);
+    const strokeWidth = options.textStrokeWidth;
     const lines = isArray(content) ? content : [content];
-    const mapKey = lines.join() + font.string + (ctx._measureText ? '-spriting' : '');
+    const mapKey = lines.join() + font.string + strokeWidth + (ctx._measureText ? '-spriting' : '');
     if (!widthCache.has(mapKey)) {
       ctx.save();
       ctx.font = font.string;
@@ -34330,10 +41912,10 @@
       let width = 0;
       for (let i = 0; i < count; i++) {
         const text = lines[i];
-        width = Math.max(width, ctx.measureText(text).width);
+        width = Math.max(width, ctx.measureText(text).width + strokeWidth);
       }
       ctx.restore();
-      const height = count * font.lineHeight;
+      const height = count * font.lineHeight + strokeWidth;
       widthCache.set(mapKey, {width, height});
     }
     return widthCache.get(mapKey);
@@ -34349,6 +41931,7 @@
   function drawBox(ctx, rect, options) {
     const {x, y, width, height} = rect;
     ctx.save();
+    setShadowStyle(ctx, options);
     const stroke = setBorderStyle(ctx, options);
     ctx.fillStyle = options.backgroundColor;
     ctx.beginPath();
@@ -34360,11 +41943,19 @@
     ctx.closePath();
     ctx.fill();
     if (stroke) {
+      ctx.shadowColor = options.borderShadowColor;
       ctx.stroke();
     }
     ctx.restore();
   }
 
+  /**
+   * Draw a label with the size and the styling options.
+   * @param {CanvasRenderingContext2D} ctx - chart canvas context
+   * @param {{x: number, y: number, width: number, height: number}} rect - rect to map teh label
+   * @param {Object} options - options to style the label
+   * @returns {undefined}
+   */
   function drawLabel(ctx, rect, options) {
     const content = options.content;
     if (isImageOrCanvas(content)) {
@@ -34375,14 +41966,38 @@
     const font = toFont(options.font);
     const lh = font.lineHeight;
     const x = calculateTextAlignment(rect, options);
-    const y = rect.y + (lh / 2);
+    const y = rect.y + (lh / 2) + options.textStrokeWidth / 2;
+    ctx.save();
     ctx.font = font.string;
     ctx.textBaseline = 'middle';
     ctx.textAlign = options.textAlign;
+    if (setTextStrokeStyle(ctx, options)) {
+      labels.forEach((l, i) => ctx.strokeText(l, x, y + (i * lh)));
+    }
     ctx.fillStyle = options.color;
     labels.forEach((l, i) => ctx.fillText(l, x, y + (i * lh)));
+    ctx.restore();
   }
 
+  function setTextStrokeStyle(ctx, options) {
+    if (options.textStrokeWidth > 0) {
+      // https://stackoverflow.com/questions/13627111/drawing-text-with-an-outer-stroke-with-html5s-canvas
+      ctx.lineJoin = 'round';
+      ctx.miterLimit = 2;
+      ctx.lineWidth = options.textStrokeWidth;
+      ctx.strokeStyle = options.textStrokeColor;
+      return true;
+    }
+  }
+
+  /**
+   * @typedef {import('chart.js').Point} Point
+   */
+
+  /**
+   * @param {{x: number, y: number, width: number, height: number}} rect
+   * @returns {Point}
+   */
   function getRectCenterPoint(rect) {
     const {x, y, width, height} = rect;
     return {
@@ -34393,16 +42008,16 @@
 
   /**
    * Rotate a `point` relative to `center` point by `angle`
-   * @param {{x: number, y: number}} point - the point to rotate
-   * @param {{x: number, y: number}} center - center point for rotation
+   * @param {Point} point - the point to rotate
+   * @param {Point} center - center point for rotation
    * @param {number} angle - angle for rotation, in radians
-   * @returns {{x: number, y: number}} rotated point
+   * @returns {Point} rotated point
    */
   function rotated(point, center, angle) {
-    var cos = Math.cos(angle);
-    var sin = Math.sin(angle);
-    var cx = center.x;
-    var cy = center.y;
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    const cx = center.x;
+    const cy = center.y;
 
     return {
       x: cx + cos * (point.x - cx) - sin * (point.y - cy),
@@ -34410,11 +42025,30 @@
     };
   }
 
+  /**
+   * @typedef { import("chart.js").Chart } Chart
+   * @typedef { import("chart.js").Scale } Scale
+   * @typedef { import("chart.js").Point } Point
+   * @typedef { import('../../types/options').CoreAnnotationOptions } CoreAnnotationOptions
+   * @typedef { import('../../types/options').PointAnnotationOptions } PointAnnotationOptions
+   */
+
+  /**
+   * @param {Scale} scale
+   * @param {number|string} value
+   * @param {number} fallback
+   * @returns {number}
+   */
   function scaleValue(scale, value, fallback) {
     value = typeof value === 'number' ? value : scale.parse(value);
     return isNumberFinite(value) ? scale.getPixelForValue(value) : fallback;
   }
 
+  /**
+   * @param {Scale} scale
+   * @param {{start: number, end: number}} options
+   * @returns {{start: number, end: number}}
+   */
   function getChartDimensionByScale(scale, options) {
     if (scale) {
       const min = scaleValue(scale, options.min, options.start);
@@ -34430,6 +42064,11 @@
     };
   }
 
+  /**
+   * @param {Chart} chart
+   * @param {CoreAnnotationOptions} options
+   * @returns {Point}
+   */
   function getChartPoint(chart, options) {
     const {chartArea, scales} = chart;
     const xScale = scales[options.xScaleID];
@@ -34447,13 +42086,18 @@
     return {x, y};
   }
 
+  /**
+   * @param {Chart} chart
+   * @param {CoreAnnotationOptions} options
+   * @returns {{x?:number, y?: number, x2?: number, y2?: number, width?: number, height?: number}}
+   */
   function getChartRect(chart, options) {
     const xScale = chart.scales[options.xScaleID];
     const yScale = chart.scales[options.yScaleID];
     let {top: y, left: x, bottom: y2, right: x2} = chart.chartArea;
 
     if (!xScale && !yScale) {
-      return {options: {}};
+      return {};
     }
 
     const xDim = getChartDimensionByScale(xScale, {min: options.xMin, max: options.xMax, start: x, end: x2});
@@ -34473,6 +42117,10 @@
     };
   }
 
+  /**
+   * @param {Chart} chart
+   * @param {PointAnnotationOptions} options
+   */
   function getChartCircle(chart, options) {
     const point = getChartPoint(chart, options);
     return {
@@ -34483,6 +42131,11 @@
     };
   }
 
+  /**
+   * @param {Chart} chart
+   * @param {PointAnnotationOptions} options
+   * @returns
+   */
   function resolvePointPosition(chart, options) {
     if (!isBoundToPoint(options)) {
       const box = getChartRect(chart, options);
@@ -34504,7 +42157,8 @@
 
   class BoxAnnotation extends Element {
     inRange(mouseX, mouseY, useFinalPosition) {
-      return inBoxRange(mouseX, mouseY, this.getProps(['x', 'y', 'width', 'height'], useFinalPosition));
+      const {x, y} = rotated({x: mouseX, y: mouseY}, this.getCenterPoint(useFinalPosition), toRadians(-this.options.rotation));
+      return inBoxRange(x, y, this.getProps(['x', 'y', 'width', 'height'], useFinalPosition), this.options.borderWidth);
     }
 
     getCenterPoint(useFinalPosition) {
@@ -34513,28 +42167,32 @@
 
     draw(ctx) {
       ctx.save();
+      translate(ctx, this, this.options.rotation);
       drawBox(ctx, this, this.options);
       ctx.restore();
     }
 
     drawLabel(ctx) {
       const {x, y, width, height, options} = this;
-      const labelOpts = options.label;
-      labelOpts.borderWidth = options.borderWidth;
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(x + labelOpts.borderWidth / 2, y + labelOpts.borderWidth / 2, width - labelOpts.borderWidth, height - labelOpts.borderWidth);
-      ctx.clip();
-      const position = toPosition(labelOpts.position);
-      const padding = toPadding(labelOpts.padding);
-      const labelSize = measureLabelSize(ctx, labelOpts);
+      const {label, borderWidth} = options;
+      const halfBorder = borderWidth / 2;
+      const position = toPosition(label.position);
+      const padding = toPadding(label.padding);
+      const labelSize = measureLabelSize(ctx, label);
       const labelRect = {
         x: calculateX(this, labelSize, position, padding),
         y: calculateY(this, labelSize, position, padding),
         width: labelSize.width,
         height: labelSize.height
       };
-      drawLabel(ctx, labelRect, labelOpts);
+
+      ctx.save();
+      translate(ctx, this, label.rotation);
+      ctx.beginPath();
+      ctx.rect(x + halfBorder + padding.left, y + halfBorder + padding.top,
+        width - borderWidth - padding.width, height - borderWidth - padding.height);
+      ctx.clip();
+      drawLabel(ctx, labelRect, label);
       ctx.restore();
     }
 
@@ -34547,15 +42205,18 @@
 
   BoxAnnotation.defaults = {
     adjustScaleRange: true,
+    backgroundShadowColor: 'transparent',
     borderCapStyle: 'butt',
     borderDash: [],
     borderDashOffset: 0,
     borderJoinStyle: 'miter',
     borderRadius: 0,
+    borderShadowColor: 'transparent',
     borderWidth: 1,
     cornerRadius: undefined, // TODO: v2 remove support for cornerRadius
     display: true,
     label: {
+      borderWidth: undefined,
       color: 'black',
       content: null,
       drawTime: undefined,
@@ -34570,11 +42231,18 @@
       height: undefined,
       padding: 6,
       position: 'center',
+      rotation: undefined,
       textAlign: 'start',
+      textStrokeColor: undefined,
+      textStrokeWidth: 0,
       xAdjust: 0,
       yAdjust: 0,
       width: undefined
     },
+    rotation: 0,
+    shadowBlur: 0,
+    shadowOffsetX: 0,
+    shadowOffsetY: 0,
     xMax: undefined,
     xMin: undefined,
     xScaleID: 'x',
@@ -34586,6 +42254,12 @@
   BoxAnnotation.defaultRoutes = {
     borderColor: 'color',
     backgroundColor: 'color'
+  };
+
+  BoxAnnotation.descriptors = {
+    label: {
+      _fallback: true
+    }
   };
 
   function calculateX(box, labelSize, position, padding) {
@@ -34617,11 +42291,11 @@
     return start + borderWidth / 2 + adjust + padStart + getRelativePosition(availableSize, position);
   }
 
-  const PI = Math.PI;
   const pointInLine = (p1, p2, t) => ({x: p1.x + t * (p2.x - p1.x), y: p1.y + t * (p2.y - p1.y)});
   const interpolateX = (y, p1, p2) => pointInLine(p1, p2, Math.abs((y - p1.y) / (p2.y - p1.y))).x;
   const interpolateY = (x, p1, p2) => pointInLine(p1, p2, Math.abs((x - p1.x) / (p2.x - p1.x))).y;
   const sqr = v => v * v;
+  const defaultEpsilon = 0.001;
 
   function isLineInArea({x, y, x2, y2}, {top, right, bottom, left}) {
     return !(
@@ -34659,7 +42333,9 @@
   }
 
   class LineAnnotation extends Element {
-    intersects(x, y, epsilon = 0.001, useFinalPosition) {
+
+    // TODO: make private in v2
+    intersects(x, y, epsilon = defaultEpsilon, useFinalPosition) {
       // Adapted from https://stackoverflow.com/a/6853926/25507
       const {x: x1, y: y1, x2, y2} = this.getProps(['x', 'y', 'x2', 'y2'], useFinalPosition);
       const dx = x2 - x1;
@@ -34677,16 +42353,21 @@
         xx = x1 + t * dx;
         yy = y1 + t * dy;
       }
-      return (sqr(x - xx) + sqr(y - yy)) < epsilon;
+      return (sqr(x - xx) + sqr(y - yy)) <= epsilon;
     }
 
-    // TODO: make private in v2
+    /**
+     * @todo make private in v2
+     * @param {boolean} useFinalPosition - use the element's animation target instead of current position
+     * @param {top, right, bottom, left} [chartArea] - optional, area of the chart
+     * @returns {boolean} true if the label is visible
+     */
     labelIsVisible(useFinalPosition, chartArea) {
       const labelOpts = this.options.label;
-      if (!chartArea || !labelOpts || !labelOpts.enabled) {
+      if (!labelOpts || !labelOpts.enabled) {
         return false;
       }
-      return isLineInArea(this.getProps(['x', 'y', 'x2', 'y2'], useFinalPosition), chartArea);
+      return !chartArea || isLineInArea(this.getProps(['x', 'y', 'x2', 'y2'], useFinalPosition), chartArea);
     }
 
     // TODO: make private in v2
@@ -34696,10 +42377,11 @@
       }
       const {labelX, labelY, labelWidth, labelHeight, labelRotation} = this.getProps(['labelX', 'labelY', 'labelWidth', 'labelHeight', 'labelRotation'], useFinalPosition);
       const {x, y} = rotated({x: mouseX, y: mouseY}, {x: labelX, y: labelY}, -labelRotation);
-      const w2 = labelWidth / 2;
-      const h2 = labelHeight / 2;
-      return x >= labelX - w2 && x <= labelX + w2 &&
-        y >= labelY - h2 && y <= labelY + h2;
+      const hBorderWidth = this.options.label.borderWidth / 2 || 0;
+      const w2 = labelWidth / 2 + hBorderWidth;
+      const h2 = labelHeight / 2 + hBorderWidth;
+      return x >= labelX - w2 - defaultEpsilon && x <= labelX + w2 + defaultEpsilon &&
+        y >= labelY - h2 - defaultEpsilon && y <= labelY + h2 + defaultEpsilon;
     }
 
     inRange(mouseX, mouseY, useFinalPosition) {
@@ -34716,19 +42398,26 @@
 
     draw(ctx) {
       const {x, y, x2, y2, options} = this;
+
       ctx.save();
+      if (!setBorderStyle(ctx, options)) {
+        // no border width, then line is not drawn
+        return ctx.restore();
+      }
+      setShadowStyle(ctx, options);
+      const angle = Math.atan2(y2 - y, x2 - x);
+      const length = Math.sqrt(Math.pow(x2 - x, 2) + Math.pow(y2 - y, 2));
+      const {startOpts, endOpts, startAdjust, endAdjust} = getArrowHeads(this);
 
-      ctx.lineWidth = options.borderWidth;
-      ctx.strokeStyle = options.borderColor;
-      ctx.setLineDash(options.borderDash);
-      ctx.lineDashOffset = options.borderDashOffset;
-
-      // Draw
+      ctx.translate(x, y);
+      ctx.rotate(angle);
       ctx.beginPath();
-      ctx.moveTo(x, y);
-      ctx.lineTo(x2, y2);
+      ctx.moveTo(0 + startAdjust, 0);
+      ctx.lineTo(length - endAdjust, 0);
+      ctx.shadowColor = options.borderShadowColor;
       ctx.stroke();
-
+      drawArrowHead(ctx, 0, startAdjust, startOpts);
+      drawArrowHead(ctx, length, -endAdjust, endOpts);
       ctx.restore();
     }
 
@@ -34803,21 +42492,50 @@
   }
 
   LineAnnotation.id = 'lineAnnotation';
+
+  const arrowHeadsDefaults = {
+    backgroundColor: undefined,
+    backgroundShadowColor: undefined,
+    borderColor: undefined,
+    borderDash: undefined,
+    borderDashOffset: undefined,
+    borderShadowColor: undefined,
+    borderWidth: undefined,
+    enabled: undefined,
+    fill: undefined,
+    length: undefined,
+    shadowBlur: undefined,
+    shadowOffsetX: undefined,
+    shadowOffsetY: undefined,
+    width: undefined
+  };
+
   LineAnnotation.defaults = {
     adjustScaleRange: true,
+    arrowHeads: {
+      enabled: false,
+      end: Object.assign({}, arrowHeadsDefaults),
+      fill: false,
+      length: 12,
+      start: Object.assign({}, arrowHeadsDefaults),
+      width: 6
+    },
     borderDash: [],
     borderDashOffset: 0,
+    borderShadowColor: 'transparent',
     borderWidth: 2,
     display: true,
     endValue: undefined,
     label: {
       backgroundColor: 'rgba(0,0,0,0.8)',
+      backgroundShadowColor: 'transparent',
       borderCapStyle: 'butt',
       borderColor: 'black',
       borderDash: [],
       borderDashOffset: 0,
       borderJoinStyle: 'miter',
       borderRadius: 6,
+      borderShadowColor: 'transparent',
       borderWidth: 0,
       color: '#fff',
       content: null,
@@ -34835,7 +42553,12 @@
       padding: 6,
       position: 'center',
       rotation: 0,
+      shadowBlur: 0,
+      shadowOffsetX: 0,
+      shadowOffsetY: 0,
       textAlign: 'center',
+      textStrokeColor: undefined,
+      textStrokeWidth: 0,
       width: undefined,
       xAdjust: 0,
       xPadding: undefined, // TODO: v2 remove support for xPadding
@@ -34843,6 +42566,9 @@
       yPadding: undefined, // TODO: v2 remove support for yPadding
     },
     scaleID: undefined,
+    shadowBlur: 0,
+    shadowOffsetX: 0,
+    shadowOffsetY: 0,
     value: undefined,
     xMax: undefined,
     xMin: undefined,
@@ -34850,6 +42576,18 @@
     yMax: undefined,
     yMin: undefined,
     yScaleID: 'y'
+  };
+
+  LineAnnotation.descriptors = {
+    arrowHeads: {
+      start: {
+        _fallback: true
+      },
+      end: {
+        _fallback: true
+      },
+      _fallback: true
+    }
   };
 
   LineAnnotation.defaultRoutes = {
@@ -34972,10 +42710,56 @@
     return coordinate;
   }
 
+  function getArrowHeads(line) {
+    const options = line.options;
+    const arrowStartOpts = options.arrowHeads && options.arrowHeads.start;
+    const arrowEndOpts = options.arrowHeads && options.arrowHeads.end;
+    return {
+      startOpts: arrowStartOpts,
+      endOpts: arrowEndOpts,
+      startAdjust: getLineAdjust(line, arrowStartOpts),
+      endAdjust: getLineAdjust(line, arrowEndOpts)
+    };
+  }
+
+  function getLineAdjust(line, arrowOpts) {
+    if (!arrowOpts || !arrowOpts.enabled) {
+      return 0;
+    }
+    const {length, width} = arrowOpts;
+    const adjust = line.options.borderWidth / 2;
+    const p1 = {x: length, y: width + adjust};
+    const p2 = {x: 0, y: adjust};
+    return Math.abs(interpolateX(0, p1, p2));
+  }
+
+  function drawArrowHead(ctx, offset, adjust, arrowOpts) {
+    if (!arrowOpts || !arrowOpts.enabled) {
+      return;
+    }
+    const {length, width, fill, backgroundColor, borderColor} = arrowOpts;
+    const arrowOffsetX = Math.abs(offset - length) + adjust;
+    ctx.beginPath();
+    setShadowStyle(ctx, arrowOpts);
+    setBorderStyle(ctx, arrowOpts);
+    ctx.moveTo(arrowOffsetX, -width);
+    ctx.lineTo(offset + adjust, 0);
+    ctx.lineTo(arrowOffsetX, width);
+    if (fill === true) {
+      ctx.fillStyle = backgroundColor || borderColor;
+      ctx.closePath();
+      ctx.fill();
+      ctx.shadowColor = 'transparent';
+    } else {
+      ctx.shadowColor = arrowOpts.borderShadowColor;
+    }
+    ctx.stroke();
+  }
+
   class EllipseAnnotation extends Element {
 
     inRange(mouseX, mouseY, useFinalPosition) {
-      return pointInEllipse({x: mouseX, y: mouseY}, this.getProps(['x', 'y', 'width', 'height'], useFinalPosition), this.options.rotation);
+      return pointInEllipse({x: mouseX, y: mouseY}, this.getProps(['width', 'height'], useFinalPosition), this.options.rotation, this.options.borderWidth);
     }
 
     getCenterPoint(useFinalPosition) {
@@ -34987,26 +42771,17 @@
       const center = this.getCenterPoint();
 
       ctx.save();
-
-      ctx.translate(center.x, center.y);
-      if (options.rotation) {
-        ctx.rotate(toRadians(options.rotation));
-      }
-
+      translate(ctx, this, options.rotation);
+      setShadowStyle(ctx, this.options);
       ctx.beginPath();
-
-      ctx.lineWidth = options.borderWidth;
-      ctx.strokeStyle = options.borderColor;
       ctx.fillStyle = options.backgroundColor;
-
-      ctx.setLineDash(options.borderDash);
-      ctx.lineDashOffset = options.borderDashOffset;
-
-      ctx.ellipse(0, 0, height / 2, width / 2, Math.PI / 2, 0, 2 * Math.PI);
-
+      const stroke = setBorderStyle(ctx, options);
+      ctx.ellipse(center.x, center.y, height / 2, width / 2, PI / 2, 0, 2 * PI);
       ctx.fill();
-      ctx.stroke();
-
+      if (stroke) {
+        ctx.shadowColor = options.borderShadowColor;
+        ctx.stroke();
+      }
       ctx.restore();
     }
 
@@ -35020,11 +42795,16 @@
 
   EllipseAnnotation.defaults = {
     adjustScaleRange: true,
+    backgroundShadowColor: 'transparent',
     borderDash: [],
     borderDashOffset: 0,
+    borderShadowColor: 'transparent',
     borderWidth: 1,
     display: true,
     rotation: 0,
+    shadowBlur: 0,
+    shadowOffsetX: 0,
+    shadowOffsetY: 0,
     xMax: undefined,
     xMin: undefined,
     xScaleID: 'x',
@@ -35038,7 +42818,7 @@
     backgroundColor: 'color'
   };
 
-  function pointInEllipse(p, ellipse, rotation) {
+  function pointInEllipse(p, ellipse, rotation, borderWidth) {
     const {width, height} = ellipse;
     const center = ellipse.getCenterPoint(true);
     const xRadius = width / 2;
@@ -35049,17 +42829,19 @@
     }
     // https://stackoverflow.com/questions/7946187/point-and-ellipse-rotated-position-test-algorithm
     const angle = toRadians(rotation || 0);
+    const hBorderWidth = borderWidth / 2 || 0;
     const cosAngle = Math.cos(angle);
     const sinAngle = Math.sin(angle);
     const a = Math.pow(cosAngle * (p.x - center.x) + sinAngle * (p.y - center.y), 2);
     const b = Math.pow(sinAngle * (p.x - center.x) - cosAngle * (p.y - center.y), 2);
-    return (a / Math.pow(xRadius, 2)) + (b / Math.pow(yRadius, 2)) <= 1;
+    return (a / Math.pow(xRadius + hBorderWidth, 2)) + (b / Math.pow(yRadius + hBorderWidth, 2)) <= 1.0001;
   }
 
   class LabelAnnotation extends Element {
 
     inRange(mouseX, mouseY, useFinalPosition) {
-      return inBoxRange(mouseX, mouseY, this.getProps(['x', 'y', 'width', 'height'], useFinalPosition));
+      const {x, y} = rotated({x: mouseX, y: mouseY}, this.getCenterPoint(useFinalPosition), toRadians(-this.options.rotation));
+      return inBoxRange(x, y, this.getProps(['x', 'y', 'width', 'height'], useFinalPosition), this.options.borderWidth);
     }
 
     getCenterPoint(useFinalPosition) {
@@ -35071,11 +42853,12 @@
         return;
       }
       const {labelX, labelY, labelWidth, labelHeight, options} = this;
+      ctx.save();
+      translate(ctx, this, options.rotation);
       drawCallout(ctx, this);
-      if (this.boxVisible) {
-        drawBox(ctx, this, options);
-      }
+      drawBox(ctx, this, options);
       drawLabel(ctx, {x: labelX, y: labelY, width: labelWidth, height: labelHeight}, options);
+      ctx.restore();
     }
 
     // TODO: make private in v2
@@ -35084,20 +42867,17 @@
       const padding = toPadding(options.padding);
       const labelSize = measureLabelSize(chart.ctx, options);
       const boxSize = measureRect(point, labelSize, options, padding);
-      const bgColor = color(options.backgroundColor);
-      const boxVisible = options.borderWidth > 0 || (bgColor && bgColor.valid && bgColor.rgb.a > 0);
-
+      const hBorderWidth = options.borderWidth / 2;
       const properties = {
-        boxVisible,
         pointX: point.x,
         pointY: point.y,
         ...boxSize,
-        labelX: boxSize.x + padding.left + (options.borderWidth / 2),
-        labelY: boxSize.y + padding.top + (options.borderWidth / 2),
+        labelX: boxSize.x + padding.left + hBorderWidth,
+        labelY: boxSize.y + padding.top + hBorderWidth,
         labelWidth: labelSize.width,
         labelHeight: labelSize.height
       };
-      properties.calloutPosition = options.callout.enabled && resolveCalloutPosition(properties, options.callout);
+      properties.calloutPosition = options.callout.enabled && resolveCalloutPosition(properties, options.callout, options.rotation);
       return properties;
     }
   }
@@ -35107,11 +42887,13 @@
   LabelAnnotation.defaults = {
     adjustScaleRange: true,
     backgroundColor: 'transparent',
+    backgroundShadowColor: 'transparent',
     borderCapStyle: 'butt',
     borderDash: [],
     borderDashOffset: 0,
     borderJoinStyle: 'miter',
     borderRadius: 0,
+    borderShadowColor: 'transparent',
     borderWidth: 0,
     callout: {
       borderCapStyle: 'butt',
@@ -35139,7 +42921,13 @@
     height: undefined,
     padding: 6,
     position: 'center',
+    rotation: 0,
+    shadowBlur: 0,
+    shadowOffsetX: 0,
+    shadowOffsetY: 0,
     textAlign: 'center',
+    textStrokeColor: undefined,
+    textStrokeWidth: 0,
     width: undefined,
     xAdjust: 0,
     xMax: undefined,
@@ -35154,8 +42942,7 @@
   };
 
   LabelAnnotation.defaultRoutes = {
-    borderColor: 'color',
-    backgroundColor: 'color',
+    borderColor: 'color'
   };
 
   function measureRect(point, size, options, padding) {
@@ -35177,25 +42964,28 @@
 
   function drawCallout(ctx, element) {
     const {pointX, pointY, calloutPosition, options} = element;
-    if (!calloutPosition) {
+    if (!calloutPosition || element.inRange(pointX, pointY)) {
       return;
     }
     const callout = options.callout;
-    const {separatorStart, separatorEnd} = getCalloutSeparatorCoord(element, calloutPosition);
-    const {sideStart, sideEnd} = getCalloutSideCoord(element, calloutPosition, separatorStart);
+
     ctx.save();
     ctx.beginPath();
     const stroke = setBorderStyle(ctx, callout);
+    if (!stroke) {
+      return ctx.restore();
+    }
+    const {separatorStart, separatorEnd} = getCalloutSeparatorCoord(element, calloutPosition);
+    const {sideStart, sideEnd} = getCalloutSideCoord(element, calloutPosition, separatorStart);
     if (callout.margin > 0 || options.borderWidth === 0) {
       ctx.moveTo(separatorStart.x, separatorStart.y);
       ctx.lineTo(separatorEnd.x, separatorEnd.y);
     }
     ctx.moveTo(sideStart.x, sideStart.y);
     ctx.lineTo(sideEnd.x, sideEnd.y);
-    ctx.lineTo(pointX, pointY);
-    if (stroke) {
-      ctx.stroke();
-    }
+    const rotatedPoint = rotated({x: pointX, y: pointY}, element.getCenterPoint(), toRadians(-options.rotation));
+    ctx.lineTo(rotatedPoint.x, rotatedPoint.y);
+    ctx.stroke();
     ctx.restore();
   }
 
@@ -35206,7 +42996,8 @@
     if (position === 'left' || position === 'right') {
       separatorStart = {x: x + adjust, y};
       separatorEnd = {x: separatorStart.x, y: separatorStart.y + height};
-    } else if (position === 'top' || position === 'bottom') {
+    } else {
+      //  position 'top' or 'bottom'
       separatorStart = {x, y: y + adjust};
       separatorEnd = {x: separatorStart.x + width, y: separatorStart.y};
     }
@@ -35232,7 +43023,8 @@
     if (position === 'left' || position === 'right') {
       sideStart = {x: separatorStart.x, y: y + getSize(height, start)};
       sideEnd = {x: sideStart.x + side, y: sideStart.y};
-    } else if (position === 'top' || position === 'bottom') {
+    } else {
+      //  position 'top' or 'bottom'
       sideStart = {x: separatorStart.x + getSize(width, start), y: separatorStart.y};
       sideEnd = {x: sideStart.x, y: sideStart.y + side};
     }
@@ -35247,34 +43039,40 @@
     return side;
   }
 
-  function resolveCalloutPosition(element, options) {
+  function resolveCalloutPosition(properties, options, rotation) {
     const position = options.position;
     if (position === 'left' || position === 'right' || position === 'top' || position === 'bottom') {
       return position;
     }
-    return resolveCalloutAutoPosition(element, options);
+    return resolveCalloutAutoPosition(properties, options, rotation);
   }
 
-  function resolveCalloutAutoPosition(element, options) {
-    const {x, y, width, height, pointX, pointY} = element;
-    const {margin, side} = options;
-    const adjust = margin + side;
-    if (pointX < (x - adjust)) {
-      return 'left';
-    } else if (pointX > (x + width + adjust)) {
-      return 'right';
-    } else if (pointY < (y + height + adjust)) {
-      return 'top';
-    } else if (pointY > (y - adjust)) {
-      return 'bottom';
+  const positions = ['left', 'bottom', 'top', 'right'];
+
+  function resolveCalloutAutoPosition(properties, options, rotation) {
+    const {x, y, width, height, pointX, pointY} = properties;
+    const center = {x: x + width / 2, y: y + height / 2};
+    const start = options.start;
+    const xAdjust = getSize(width, start);
+    const yAdjust = getSize(height, start);
+    const xPoints = [x, x + xAdjust, x + xAdjust, x + width];
+    const yPoints = [y + yAdjust, y + height, y, y + yAdjust];
+    const result = [];
+    for (let index = 0; index < 4; index++) {
+      const rotatedPoint = rotated({x: xPoints[index], y: yPoints[index]}, center, toRadians(rotation));
+      result.push({
+        position: positions[index],
+        distance: distanceBetweenPoints(rotatedPoint, {x: pointX, y: pointY})
+      });
     }
+    return result.sort((a, b) => a.distance - b.distance)[0].position;
   }
 
   class PointAnnotation extends Element {
 
     inRange(mouseX, mouseY, useFinalPosition) {
       const {width} = this.getProps(['width'], useFinalPosition);
-      return inPointRange({x: mouseX, y: mouseY}, this.getCenterPoint(useFinalPosition), width / 2 + this.options.borderWidth);
+      return inPointRange({x: mouseX, y: mouseY}, this.getCenterPoint(useFinalPosition), width / 2, this.options.borderWidth);
     }
 
     getCenterPoint(useFinalPosition) {
@@ -35283,11 +43081,22 @@
 
     draw(ctx) {
       const options = this.options;
+      const borderWidth = options.borderWidth;
+      if (options.radius < 0.1) {
+        return;
+      }
       ctx.save();
       ctx.fillStyle = options.backgroundColor;
-      setBorderStyle(ctx, options);
+      setShadowStyle(ctx, options);
+      const stroke = setBorderStyle(ctx, options);
+      options.borderWidth = 0;
       drawPoint(ctx, options, this.x, this.y);
+      if (stroke && !isImageOrCanvas(options.pointStyle)) {
+        ctx.shadowColor = options.borderShadowColor;
+        ctx.stroke();
+      }
       ctx.restore();
+      options.borderWidth = borderWidth;
     }
 
     resolveElementProperties(chart, options) {
@@ -35299,13 +43108,18 @@
 
   PointAnnotation.defaults = {
     adjustScaleRange: true,
+    backgroundShadowColor: 'transparent',
     borderDash: [],
     borderDashOffset: 0,
+    borderShadowColor: 'transparent',
     borderWidth: 1,
     display: true,
     pointStyle: 'circle',
     radius: 10,
     rotation: 0,
+    shadowBlur: 0,
+    shadowOffsetX: 0,
+    shadowOffsetY: 0,
     xAdjust: 0,
     xMax: undefined,
     xMin: undefined,
@@ -35324,10 +43138,8 @@
   };
 
   class PolygonAnnotation extends Element {
-
     inRange(mouseX, mouseY, useFinalPosition) {
-      const vertices = getVertices(this.getProps(['x', 'y'], useFinalPosition), this.options);
-      return vertices && vertices.length > 0 && pointIsInPolygon(vertices, mouseX, mouseY);
+      return this.options.radius >= 0.1 && this.elements.length > 1 && pointIsInPolygon(this.elements, mouseX, mouseY, useFinalPosition);
     }
 
     getCenterPoint(useFinalPosition) {
@@ -35335,48 +43147,76 @@
     }
 
     draw(ctx) {
-      const {x, y, options} = this;
-      const vertices = getVertices({x, y}, options);
-      let vertex = vertices[0];
+      const {elements, options} = this;
       ctx.save();
       ctx.beginPath();
       ctx.fillStyle = options.backgroundColor;
+      setShadowStyle(ctx, options);
       const stroke = setBorderStyle(ctx, options);
-      ctx.moveTo(vertex.x, vertex.y);
-      for (let i = 1; i < vertices.length; i++) {
-        vertex = vertices[i];
-        ctx.lineTo(vertex.x, vertex.y);
+      let first = true;
+      for (const el of elements) {
+        if (first) {
+          ctx.moveTo(el.x, el.y);
+          first = false;
+        } else {
+          ctx.lineTo(el.x, el.y);
+        }
       }
       ctx.closePath();
       ctx.fill();
       // If no border, don't draw it
       if (stroke) {
+        ctx.shadowColor = options.borderShadowColor;
         ctx.stroke();
       }
       ctx.restore();
     }
 
     resolveElementProperties(chart, options) {
-      if (isNumber(options.sides) && options.sides >= 1) {
-        return resolvePointPosition(chart, options);
+      const {x, y, width, height} = resolvePointPosition(chart, options);
+      const {sides, radius, rotation, borderWidth} = options;
+      const halfBorder = borderWidth / 2;
+      const elements = [];
+      const angle = (2 * PI) / sides;
+      let rad = rotation * RAD_PER_DEG;
+      for (let i = 0; i < sides; i++, rad += angle) {
+        const sin = Math.sin(rad);
+        const cos = Math.cos(rad);
+        elements.push({
+          type: 'point',
+          optionScope: 'point',
+          properties: {
+            x: x + sin * radius,
+            y: y - cos * radius,
+            bX: x + sin * (radius + halfBorder),
+            bY: y - cos * (radius + halfBorder)
+          }
+        });
       }
-      return {options: {}};
+      return {x, y, width, height, elements, initProperties: {x, y}};
     }
-
   }
 
   PolygonAnnotation.id = 'polygonAnnotation';
 
   PolygonAnnotation.defaults = {
     adjustScaleRange: true,
+    backgroundShadowColor: 'transparent',
     borderCapStyle: 'butt',
     borderDash: [],
     borderDashOffset: 0,
     borderJoinStyle: 'miter',
+    borderShadowColor: 'transparent',
     borderWidth: 1,
     display: true,
+    point: {
+      radius: 0
+    },
     radius: 10,
     rotation: 0,
+    shadowBlur: 0,
+    shadowOffsetX: 0,
+    shadowOffsetY: 0,
     sides: 3,
     xAdjust: 0,
     xMax: undefined,
@@ -35395,35 +43235,16 @@
     backgroundColor: 'color'
   };
 
-  function getVertices(point, options) {
-    const {sides, radius} = options;
-    let angle = (2 * PI$1) / sides;
-    let rad = options.rotation * RAD_PER_DEG;
-    const vertices = new Array();
-    addVertex(vertices, point, rad, radius);
-    for (let i = 0; i < sides; i++) {
-      rad += angle;
-      addVertex(vertices, point, rad, radius);
-    }
-    return vertices;
-  }
 
-  function addVertex(array, point, rad, radius) {
-    array.push({
-      x: point.x + Math.sin(rad) * radius,
-      y: point.y - Math.cos(rad) * radius
-    });
-  }
-
-  function pointIsInPolygon(vertices, x, y) {
+  function pointIsInPolygon(points, x, y, useFinalPosition) {
     let isInside = false;
-    let i = 0;
-    let j = vertices.length - 1;
-    for (j; i < vertices.length; j = i++) {
-      if ((vertices[i].y > y) !== (vertices[j].y > y) &&
-           x < (vertices[j].x - vertices[i].x) * (y - vertices[i].y) / (vertices[j].y - vertices[i].y) + vertices[i].x) {
+    let A = points[points.length - 1].getProps(['bX', 'bY'], useFinalPosition);
+    for (const point of points) {
+      const B = point.getProps(['bX', 'bY'], useFinalPosition);
+      if ((B.bY > y) !== (A.bY > y) && x < (A.bX - B.bX) * (y - B.bY) / (A.bY - B.bY) + B.bX) {
         isInside = !isInside;
       }
+      A = B;
     }
     return isInside;
   }
@@ -35451,21 +43272,170 @@
     });
   });
 
-  var version = "1.2.2";
+  const directUpdater = {
+    update: Object.assign
+  };
+
+  /**
+   * Resolve the annotation type, checking if is supported.
+   * @param {string} [type=line] - annotation type
+   * @returns {string} resolved annotation type
+   */
+  function resolveType(type = 'line') {
+    if (annotationTypes[type]) {
+      return type;
+    }
+    console.warn(`Unknown annotation type: '${type}', defaulting to 'line'`);
+    return 'line';
+  }
+
+  /**
+   * Create or update all annotation elements, configured to the plugin.
+   * @param {Chart} chart - the chart where the plugin is enabled
+   * @param {Object} state - the state of the plugin
+   * @param {Object} options - annotation options to use
+   * @param {UpdateMode} mode - The update mode
+   */
+  function updateElements(chart, state, options, mode) {
+    const animations = resolveAnimations(chart, options.animations, mode);
+
+    const annotations = state.annotations;
+    const elements = resyncElements(state.elements, annotations);
+
+    for (let i = 0; i < annotations.length; i++) {
+      const annotationOptions = annotations[i];
+      const element = getOrCreateElement(elements, i, annotationOptions.type);
+      const resolver = annotationOptions.setContext(getContext(chart, element, annotationOptions));
+      const properties = element.resolveElementProperties(chart, resolver);
+
+      properties.skip = toSkip(properties);
+
+      if ('elements' in properties) {
+        updateSubElements(element, properties, resolver, animations);
+        // Remove the sub-element definitions from properties, so the actual elements
+        // are not overwritten by their definitions
+        delete properties.elements;
+      }
+
+      if (!defined(element.x)) {
+        // If the element is newly created, assing the properties directly - to
+        // make them readily awailable to any scriptable options. If we do not do this,
+        // the properties retruned by `resolveElementProperties` are available only
+        // after options resolution.
+        Object.assign(element, properties);
+      }
+
+      properties.options = resolveAnnotationOptions(resolver);
+
+      animations.update(element, properties);
+    }
+  }
+
+  function toSkip(properties) {
+    return isNaN(properties.x) || isNaN(properties.y);
+  }
+
+  function resolveAnimations(chart, animOpts, mode) {
+    if (mode === 'reset' || mode === 'none' || mode === 'resize') {
+      return directUpdater;
+    }
+    return new Animations(chart, animOpts);
+  }
+
+  function updateSubElements(mainElement, {elements, initProperties}, resolver, animations) {
+    const subElements = mainElement.elements || (mainElement.elements = []);
+    subElements.length = elements.length;
+    for (let i = 0; i < elements.length; i++) {
+      const definition = elements[i];
+      const properties = definition.properties;
+      const subElement = getOrCreateElement(subElements, i, definition.type, initProperties);
+      const subResolver = resolver[definition.optionScope].override(definition);
+      properties.options = resolveAnnotationOptions(subResolver);
+      animations.update(subElement, properties);
+    }
+  }
+
+  function getOrCreateElement(elements, index, type, initProperties) {
+    const elementClass = annotationTypes[resolveType(type)];
+    let element = elements[index];
+    if (!element || !(element instanceof elementClass)) {
+      element = elements[index] = new elementClass();
+      if (isObject(initProperties)) {
+        Object.assign(element, initProperties);
+      }
+    }
+    return element;
+  }
+
+  function resolveAnnotationOptions(resolver) {
+    const elementClass = annotationTypes[resolveType(resolver.type)];
+    const result = {};
+    result.id = resolver.id;
+    result.type = resolver.type;
+    result.drawTime = resolver.drawTime;
+    Object.assign(result,
+      resolveObj(resolver, elementClass.defaults),
+      resolveObj(resolver, elementClass.defaultRoutes));
+    for (const hook of hooks) {
+      result[hook] = resolver[hook];
+    }
+    return result;
+  }
+
+  function resolveObj(resolver, defs) {
+    const result = {};
+    for (const prop of Object.keys(defs)) {
+      const optDefs = defs[prop];
+      const value = resolver[prop];
+      result[prop] = isObject(optDefs) ? resolveObj(value, optDefs) : value;
+    }
+    return result;
+  }
+
+  function getContext(chart, element, annotation) {
+    return element.$context || (element.$context = Object.assign(Object.create(chart.getContext()), {
+      element,
+      id: annotation.id,
+      type: 'annotation'
+    }));
+  }
+
+  function resyncElements(elements, annotations) {
+    const count = annotations.length;
+    const start = elements.length;
+
+    if (start < count) {
+      const add = count - start;
+      elements.splice(start, 0, ...new Array(add));
+    } else if (start > count) {
+      elements.splice(count, start - count);
+    }
+    return elements;
+  }
+
+  var name = "chartjs-plugin-annotation";
+  var version = "1.4.0";
 
   const chartStates = new Map();
-  const versionParts = Chart.version.split('.');
 
   var annotation = {
     id: 'annotation',
 
     version,
 
+    /* TODO: enable in v2
+    beforeRegister() {
+      requireVersion('chart.js', '3.7', Chart.version);
+    },
+    */
+
     afterRegister() {
       Chart.register(annotationTypes);
 
-      // TODO: Remove this workaround when strictly requiring Chart.js v3.7 or newer
-      if (versionParts[0] === '3' && parseInt(versionParts[1], 10) <= 6) {
+      // TODO: Remove this check, warning and workaround in v2
+      if (!requireVersion('chart.js', '3.7', Chart.version, false)) {
+        console.warn(`${name} has known issues with chart.js versions prior to 3.7, please consider upgrading.`);
+
         // Workaround for https://github.com/chartjs/chartjs-plugin-annotation/issues/572
         Chart.defaults.set('elements.lineAnnotation', {
           callout: {},
@@ -35577,107 +43547,22 @@
     additionalOptionScopes: ['']
   };
 
-  const directUpdater = {
-    update: Object.assign
-  };
-
-  function resolveAnimations(chart, animOpts, mode) {
-    if (mode === 'reset' || mode === 'none' || mode === 'resize') {
-      return directUpdater;
-    }
-    return new Animations(chart, animOpts);
-  }
-
-  function resolveType(type = 'line') {
-    if (annotationTypes[type]) {
-      return type;
-    }
-    console.warn(`Unknown annotation type: '${type}', defaulting to 'line'`);
-    return 'line';
-  }
-
-  function updateElements(chart, state, options, mode) {
-    const animations = resolveAnimations(chart, options.animations, mode);
-
-    const annotations = state.annotations;
-    const elements = resyncElements(state.elements, annotations);
-
-    for (let i = 0; i < annotations.length; i++) {
-      const annotation = annotations[i];
-      let el = elements[i];
-      const elementClass = annotationTypes[resolveType(annotation.type)];
-      if (!el || !(el instanceof elementClass)) {
-        el = elements[i] = new elementClass();
-      }
-      const opts = resolveAnnotationOptions(annotation.setContext(getContext(chart, el, annotation)));
-      const properties = el.resolveElementProperties(chart, opts);
-      properties.skip = isNaN(properties.x) || isNaN(properties.y);
-      properties.options = opts;
-      animations.update(el, properties);
-    }
-  }
-
-  function resolveAnnotationOptions(resolver) {
-    const elementClass = annotationTypes[resolveType(resolver.type)];
-    const result = {};
-    result.id = resolver.id;
-    result.type = resolver.type;
-    result.drawTime = resolver.drawTime;
-    Object.assign(result, resolveObj(resolver, elementClass.defaults), resolveObj(resolver, elementClass.defaultRoutes));
-    for (const hook of hooks) {
-      result[hook] = resolver[hook];
-    }
-    return result;
-  }
-
-  function resolveObj(resolver, defs) {
-    const result = {};
-    for (const name of Object.keys(defs)) {
-      const optDefs = defs[name];
-      const value = resolver[name];
-      result[name] = isObject(optDefs) ? resolveObj(value, optDefs) : value;
-    }
-    return result;
-  }
-
-  function getContext(chart, element, annotation) {
-    return element.$context || (element.$context = Object.assign(Object.create(chart.getContext()), {
-      element,
-      id: annotation.id,
-      type: 'annotation'
-    }));
-  }
-
-  function resyncElements(elements, annotations) {
-    const count = annotations.length;
-    const start = elements.length;
-
-    if (start < count) {
-      const add = count - start;
-      elements.splice(start, 0, ...new Array(add));
-    } else if (start > count) {
-      elements.splice(count, start - count);
-    }
-    return elements;
-  }
-
   function draw(chart, caller, clip) {
     const {ctx, chartArea} = chart;
-    const state = chartStates.get(chart);
+    const {visibleElements} = chartStates.get(chart);
 
     if (clip) {
       clipArea(ctx, chartArea);
     }
-    state.visibleElements.forEach(el => {
-      if (el.options.drawTime === caller) {
-        el.draw(ctx);
-      }
-    });
+
+    drawElements(ctx, visibleElements, caller);
+    drawSubElements(ctx, visibleElements, caller);
+
     if (clip) {
       unclipArea(ctx);
     }
 
-    state.visibleElements.forEach(el => {
+    visibleElements.forEach(el => {
       if (!('drawLabel' in el)) {
         return;
       }
@@ -35686,6 +43571,22 @@
         el.drawLabel(ctx, chartArea);
       }
     });
+  }
+
+  function drawElements(ctx, elements, caller) {
+    for (const el of elements) {
+      if (el.options.drawTime === caller) {
+        el.draw(ctx);
+      }
+    }
+  }
+
+  function drawSubElements(ctx, elements, caller) {
+    for (const el of elements) {
+      if (isArray(el.elements)) {
+        drawElements(ctx, el.elements, caller);
+      }
+    }
   }
 
   class Card extends s {
@@ -35893,7 +43794,7 @@
     }
 
     render() {
-      return $`
+      return x`
       <ha-card style="padding: ${this._config.entity_row ? '0px; box-shadow: none;' : '16px;'}">
         <canvas>Your browser does not support the canvas element.</canvas>
       </ha-card>
